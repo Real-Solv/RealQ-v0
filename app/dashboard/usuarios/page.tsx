@@ -1,12 +1,19 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Loader2, Search, UserPlus } from "lucide-react"
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import { Loader2, Search, UserPlus } from "lucide-react";
+import Link from "next/link";
 
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,82 +21,122 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
-import { getAllUsers, type User, getUserTypeDescription } from "@/lib/services/user-service-extended"
-import { useToast } from "@/hooks/use-toast"
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+
+import {
+  getAllUsers,
+  type User,
+  getUserTypeDescription,
+} from "@/lib/services/user-service-extended";
+import { supabaseClient } from "@/lib/supabase/client";
 
 export default function UsersPage() {
-  const { toast } = useToast()
-  const [users, setUsers] = useState<User[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
+  const { toast } = useToast();
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
+  // Carregar usuários
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        setIsLoading(true)
-        const data = await getAllUsers()
-        setUsers(data)
-        setFilteredUsers(data)
+        setIsLoading(true);
+        const data = await getAllUsers();
+        setUsers(data);
+        setFilteredUsers(data);
       } catch (error) {
-        console.error("Erro ao carregar usuários:", error)
+        console.error("Erro ao carregar usuários:", error);
         toast({
           title: "Erro ao carregar usuários",
           description: "Não foi possível carregar a lista de usuários.",
           variant: "destructive",
-        })
+        });
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    loadUsers()
-  }, [toast])
+    loadUsers();
+  }, [toast]);
 
+  // Filtrar usuários
   useEffect(() => {
     if (searchQuery.trim() === "") {
-      setFilteredUsers(users)
+      setFilteredUsers(users);
     } else {
-      const query = searchQuery.toLowerCase()
-      const filtered = users.filter(
-        (user) =>
-          user.name.toLowerCase().includes(query) ||
-          user.email.toLowerCase().includes(query) ||
-          getUserTypeDescription(user.user_type).toLowerCase().includes(query),
-      )
-      setFilteredUsers(filtered)
+      const query = searchQuery.toLowerCase();
+      const filtered = users.filter((user) => {
+        const name = user.name ?? "";
+        const email = user.email ?? "";
+        const typeDesc = getUserTypeDescription(user.user_type ?? "");
+        return (
+          name.toLowerCase().includes(query) ||
+          email.toLowerCase().includes(query) ||
+          typeDesc.toLowerCase().includes(query)
+        );
+      });
+      setFilteredUsers(filtered);
     }
-  }, [searchQuery, users])
+  }, [searchQuery, users]);
 
-  // Obter as iniciais do nome do usuário para o fallback do avatar
-  const getInitials = (name: string) => {
-    return name
+  // Inicial do avatar
+  const getInitials = (name: string) =>
+    name
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
-      .substring(0, 2)
-  }
+      .substring(0, 2);
 
   // Formatar data
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+    if (!dateString) return "-";
+    const date = new Date(dateString);
     return new Intl.DateTimeFormat("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
-    }).format(date)
-  }
+    }).format(date);
+  };
+
+  // Deletar usuário
+  const handleDeleteUser = async (user: User) => {
+    if (!user.id) return;
+    const confirmed = confirm(`Deseja realmente excluir ${user.name}?`);
+    if (!confirmed) return;
+
+    const { error } = await supabaseClient
+      .from("users")
+      .delete()
+      .eq("id", user.id);
+
+    if (error) {
+      toast({
+        title: "Erro ao excluir usuário",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Usuário excluído",
+        description: `${user.name} foi removido com sucesso.`,
+      });
+      // Atualiza lista no frontend
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setFilteredUsers((prev) => prev.filter((u) => u.id !== user.id));
+    }
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
-    )
+    );
   }
 
   return (
@@ -97,7 +144,9 @@ export default function UsersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Usuários</h2>
-          <p className="text-muted-foreground">Gerencie os usuários do sistema</p>
+          <p className="text-muted-foreground">
+            Gerencie os usuários do sistema
+          </p>
         </div>
         <Button asChild>
           <Link href="/dashboard/usuarios/novo">
@@ -142,21 +191,33 @@ export default function UsersPage() {
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       <Avatar className="h-8 w-8">
-                        {user.profile_image ? <AvatarImage src={user.profile_image} alt={user.name} /> : null}
-                        <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                        {user.profile_image ? (
+                          <AvatarImage
+                            src={user.profile_image}
+                            alt={user.name}
+                          />
+                        ) : (
+                          <AvatarFallback>
+                            {getInitials(user.name)}
+                          </AvatarFallback>
+                        )}
                       </Avatar>
                       <span>{user.name}</span>
                     </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="bg-slate-100">
-                      {getUserTypeDescription(user.user_type)}
+                      {getUserTypeDescription(user.user_type ?? "")}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{user.email}</TableCell>
-                  <TableCell className="hidden md:table-cell">{user.phone || "-"}</TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {user.created_at ? formatDate(user.created_at) : "-"}
+                    {user.email ?? "-"}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {user.phone ?? "-"}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    {formatDate(user.created_at ?? "")}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -182,13 +243,22 @@ export default function UsersPage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/usuarios/${user.id}`}>Ver detalhes</Link>
+                          <Link href={`/dashboard/usuarios/${user.id}`}>
+                            Ver detalhes
+                          </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/usuarios/${user.id}/editar`}>Editar</Link>
+                          <Link href={`/dashboard/usuarios/${user.id}/editar`}>
+                            Editar
+                          </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">Excluir</DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => handleDeleteUser(user)}
+                        >
+                          Excluir
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -199,5 +269,5 @@ export default function UsersPage() {
         </Table>
       </div>
     </div>
-  )
+  );
 }

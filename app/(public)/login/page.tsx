@@ -33,7 +33,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [debugInfo, setDebugInfo] = useState<string | null>(null)
 
-  // Check if user is already logged in
+  // ✅ Verifica se já existe sessão ativa — sem redirecionar automaticamente indevido
   useEffect(() => {
     const checkUserSession = async () => {
       console.log("[Login Page] Checking if user is already logged in")
@@ -41,20 +41,25 @@ export default function LoginPage() {
         const isLoggedIn = await checkSession()
         console.log("[Login Page] User session check result:", { isLoggedIn })
 
-        if (isLoggedIn) {
+        // ✅ Só redireciona se a sessão estiver ativa e não houver forçamento de login
+        if (isLoggedIn && !window.location.search.includes("forceLogin=true")) {
           console.log("[Login Page] User is already logged in, redirecting to dashboard")
           router.push("/dashboard")
         }
       } catch (error) {
         console.error("[Login Page] Error checking session:", error)
-        setDebugInfo(`Session check error: ${error instanceof Error ? error.message : "Unknown error"}`)
+        setDebugInfo(
+          `Session check error: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`
+        )
       }
     }
 
     checkUserSession()
   }, [router])
 
-  // Check for error parameter in URL
+  // Detecta erro via parâmetro da URL
   useEffect(() => {
     if (errorParam) {
       console.error("[Login Page] Error parameter in URL:", errorParam)
@@ -110,10 +115,9 @@ export default function LoginPage() {
         description: "Você será redirecionado para o dashboard.",
       })
 
-      // Aumentar o atraso para garantir que os cookies sejam definidos corretamente
+      // Aguarda um tempo para cookies e sessão serem aplicados corretamente
       setTimeout(() => {
         console.log("[Login Page] Redirecting to:", redirectTo)
-        // Forçar uma navegação completa para garantir o processamento correto da sessão
         window.location.href = `${redirectTo}?auth=${Date.now()}`
       }, 1500)
     } catch (error) {
@@ -219,7 +223,9 @@ export default function LoginPage() {
                   <Checkbox
                     id="remember"
                     checked={formData.rememberMe}
-                    onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, rememberMe: checked as boolean }))}
+                    onCheckedChange={(checked) =>
+                      setFormData((prev) => ({ ...prev, rememberMe: checked as boolean }))
+                    }
                     disabled={isSubmitting}
                   />
                   <label htmlFor="remember" className="text-sm text-muted-foreground">

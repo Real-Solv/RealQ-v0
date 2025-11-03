@@ -276,6 +276,39 @@ export interface Database {
           created_at?: string
           created_by?: string
         }
+        non_conformities: {
+  Row: { ... }
+  Insert: { ... }
+  Update: { ... }
+},
+
+revendedores: {
+  Row: {
+    id: string
+    nome: string
+    email: string
+    telefone: string
+    cidade: string
+    created_at: string
+  }
+  Insert: {
+    id?: string
+    nome: string
+    email: string
+    telefone: string
+    cidade: string
+    created_at?: string
+  }
+  Update: {
+    id?: string
+    nome?: string
+    email?: string
+    telefone?: string
+    cidade?: string
+    created_at?: string
+  }
+}
+
       }
     }
   }

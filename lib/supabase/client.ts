@@ -1,44 +1,42 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
-import type { Database } from "@/lib/database.types"
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/database.types";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// 🔹 Lê as variáveis de ambiente
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl) {
-  throw new Error("Missing env.NEXT_PUBLIC_SUPABASE_URL")
+// 🔹 Garante que as variáveis estão configuradas
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "❌ Variáveis de ambiente do Supabase não configuradas corretamente."
+  );
 }
 
-if (!supabaseAnonKey) {
-  throw new Error("Missing env.NEXT_PUBLIC_SUPABASE_ANON_KEY")
-}
-
-console.log("[Supabase] Initializing client with URL:", supabaseUrl)
-
-// Create a singleton instance
-let supabaseInstance: ReturnType<typeof createSupabaseClient<Database>> | null = null
-
-export function getSupabaseClient() {
-  if (!supabaseInstance) {
-    supabaseInstance = createSupabaseClient<Database>(supabaseUrl!, supabaseAnonKey!, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-      },
-    })
-    console.log("[Supabase] Client instance created")
+// 🔹 Cria o cliente tipado com seu schema do banco
+// 🚫 Desativa a persistência automática da sessão e o auto refresh
+export const supabaseClient = createClient<Database>(
+  supabaseUrl,
+  supabaseAnonKey,
+  {
+    auth: {
+      persistSession: true, // ✅ Mantém o usuário logado mesmo após reload
+      autoRefreshToken: true, // ✅ Atualiza o token automaticamente quando expira
+      detectSessionInUrl: true, // ✅ Necessário para OAuth / redirecionamentos
+      storageKey: "supabase.auth.token", // (opcional) chave consistente no localStorage
+    },
   }
-  return supabaseInstance
+);
+
+// 🔹 Compatibilidade retroativa com imports antigos
+export const supabase = supabaseClient;
+
+// 🔹 Função auxiliar para obter o cliente
+export function getSupabaseClient() {
+  return supabaseClient;
 }
 
-// Named export for compatibility
-export function createClient() {
-  return getSupabaseClient()
-}
+// 🔹 Export default para importação direta
+export default supabaseClient;
 
-// Export the client instance with different names for backward compatibility
-export const supabaseClient = getSupabaseClient()
-export const supabase = getSupabaseClient()
-
-// Default export
-export default getSupabaseClient()
+// 🔹 Export opcional da função createClient (caso use em outros lugares)
+export { createClient };

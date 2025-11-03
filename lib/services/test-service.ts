@@ -1,38 +1,42 @@
+// /lib/services/test-service.ts
+
 import { supabaseClient } from "@/lib/supabase/client"
+import type { Database } from "@/lib/database.types"
 
-// Tipo para o teste
-export interface Test {
-  id: string
-  name: string
-  description: string
-  created_at: string
-}
+// 🔹 Tipo derivado automaticamente do seu schema Supabase
+export type Test = Database["public"]["Tables"]["tests"]["Row"]
 
-// Função para obter todos os testes
+// -------------------------------------------
+// 🔹 Buscar todos os testes
+// -------------------------------------------
 export async function getAllTests(): Promise<Test[]> {
   try {
-    const { data, error } = await supabaseClient.from("tests").select("*").order("name")
+    const { data, error } = await supabaseClient
+      .from("tests")
+      .select("*")
+      .order("name")
 
-    if (error) {
-      throw error
-    }
-
-    return data || []
+    if (error) throw error
+    return data ?? []
   } catch (error) {
     console.error("Erro ao buscar testes:", error)
     throw error
   }
 }
 
-// Função para obter um teste específico por ID
+// -------------------------------------------
+// 🔹 Buscar teste por ID
+// -------------------------------------------
 export async function getTestById(id: string): Promise<Test | null> {
   try {
-    const { data, error } = await supabaseClient.from("tests").select("*").eq("id", id).single()
+    const { data, error } = await supabaseClient
+      .from("tests")
+      .select("*")
+      .eq("id", id)
+      .single()
 
     if (error) {
-      if (error.code === "PGRST116") {
-        return null // Teste não encontrado
-      }
+      if (error.code === "PGRST116") return null // Registro não encontrado
       throw error
     }
 
@@ -43,61 +47,65 @@ export async function getTestById(id: string): Promise<Test | null> {
   }
 }
 
-// Função para criar um teste
+// -------------------------------------------
+// 🔹 Criar novo teste
+// -------------------------------------------
 export async function createTest(data: { name: string; description?: string }): Promise<Test> {
   try {
-    const { data: test, error } = await supabaseClient
+    const { data: inserted, error } = await supabaseClient
       .from("tests")
       .insert({
         name: data.name,
-        description: data.description || "",
+        description: data.description ?? null, // ✅ usa null caso não seja passado
       })
       .select()
       .single()
 
-    if (error) {
-      throw error
-    }
+    if (error) throw error
+    if (!inserted) throw new Error("Nenhum registro retornado ao criar teste.")
 
-    return test
+    return inserted
   } catch (error) {
     console.error("Erro ao criar teste:", error)
     throw error
   }
 }
 
-// Função para atualizar um teste
-export async function updateTest(id: string, data: { name?: string; description?: string }): Promise<Test> {
+// -------------------------------------------
+// 🔹 Atualizar teste existente
+// -------------------------------------------
+export async function updateTest(
+  id: string,
+  data: { name?: string; description?: string }
+): Promise<Test> {
   try {
-    const { data: test, error } = await supabaseClient
+    const { data: updated, error } = await supabaseClient
       .from("tests")
       .update({
         name: data.name,
-        description: data.description,
+        description: data.description ?? null, // ✅ evita problemas com undefined
       })
       .eq("id", id)
       .select()
       .single()
 
-    if (error) {
-      throw error
-    }
+    if (error) throw error
+    if (!updated) throw new Error(`Nenhum teste encontrado com ID ${id}.`)
 
-    return test
+    return updated
   } catch (error) {
     console.error(`Erro ao atualizar teste com ID ${id}:`, error)
     throw error
   }
 }
 
-// Função para excluir um teste
+// -------------------------------------------
+// 🔹 Excluir teste
+// -------------------------------------------
 export async function deleteTest(id: string): Promise<void> {
   try {
     const { error } = await supabaseClient.from("tests").delete().eq("id", id)
-
-    if (error) {
-      throw error
-    }
+    if (error) throw error
   } catch (error) {
     console.error(`Erro ao excluir teste com ID ${id}:`, error)
     throw error

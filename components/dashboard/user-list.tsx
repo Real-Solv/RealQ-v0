@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { Eye, Pencil, Trash2, MoreHorizontal, Loader2, Shield } from "lucide-react"
 
@@ -39,16 +39,15 @@ export function UserList({ searchTerm }: UserListProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [users, setUsers] = useState<User[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([])
 
-  // Carregar usuários do Supabase
+  // 🔹 Carregar usuários do Supabase
   useEffect(() => {
     const loadUsers = async () => {
       try {
         setIsLoading(true)
         const data = await getAllUsers()
         setUsers(data)
-      } catch (error) {
+      } catch (error: any) {
         console.error("Erro ao carregar usuários:", error)
         toast({
           title: "Erro ao carregar usuários",
@@ -63,64 +62,68 @@ export function UserList({ searchTerm }: UserListProps) {
     loadUsers()
   }, [toast])
 
-  // Filtrar usuários com base no termo de busca
-  useEffect(() => {
-    if (searchTerm.trim() === "") {
-      setFilteredUsers(users)
-    } else {
-      const filtered = users.filter(
-        (user) =>
-          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (user.phone && user.phone.toLowerCase().includes(searchTerm.toLowerCase())),
-      )
-      setFilteredUsers(filtered)
-    }
+  // 🔹 Filtrar usuários com base no termo de busca (otimizado com useMemo)
+  const filteredUsers = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
+    if (!term) return users
+
+    return users.filter(
+      (user) =>
+        user.name?.toLowerCase().includes(term) ||
+        user.email?.toLowerCase().includes(term) ||
+        user.phone?.toLowerCase().includes(term)
+    )
   }, [searchTerm, users])
 
-  const handleDelete = async (id: string) => {
-    try {
-      setIsDeleting(true)
-      await deleteUser(id)
+  // 🔹 Função de exclusão com useCallback (mantém referência estável)
+  const handleDelete = useCallback(
+    async (id: string) => {
+      try {
+        setIsDeleting(true)
+        await deleteUser(id)
+        setUsers((prevUsers) => prevUsers.filter((user) => user.id !== id))
 
-      // Atualizar a lista de usuários após a exclusão
-      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== id))
+        toast({
+          title: "Usuário excluído",
+          description: "O usuário foi excluído com sucesso.",
+        })
+      } catch (error: any) {
+        console.error("Erro ao excluir usuário:", error)
+        toast({
+          title: "Erro ao excluir usuário",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Ocorreu um erro ao excluir o usuário. Tente novamente.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsDeleting(false)
+        setDeleteUserId(null)
+      }
+    },
+    [toast]
+  )
 
-      toast({
-        title: "Usuário excluído",
-        description: "O usuário foi excluído com sucesso.",
-      })
-    } catch (error) {
-      console.error("Erro ao excluir usuário:", error)
-      toast({
-        title: "Erro ao excluir usuário",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao excluir o usuário. Tente novamente.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsDeleting(false)
-      setDeleteUserId(null)
+  // 🔹 Exibir tipo de usuário como badge
+  const getUserTypeBadge = (userType?: string) => {
+    if (!userType) return <Badge>Indefinido</Badge>
+
+    const types: Record<string, { label: string; color: string }> = {
+      "admin-user": { label: "Administrador", color: "bg-red-500" },
+      "manager-user": { label: "Gestor", color: "bg-orange-500" },
+      "quality-user": { label: "Profissional QA", color: "bg-blue-500" },
+      "viewer-user": { label: "Visualizador", color: "bg-green-500" },
     }
+
+    const type = types[userType]
+    return <Badge className={type?.color ?? "bg-gray-500"}>{type?.label ?? userType}</Badge>
   }
 
-  const getUserTypeBadge = (userType: string) => {
-    switch (userType) {
-      case "admin-user":
-        return <Badge className="bg-red-500">Administrador</Badge>
-      case "manager-user":
-        return <Badge className="bg-orange-500">Gestor</Badge>
-      case "quality-user":
-        return <Badge className="bg-blue-500">Profissional QA</Badge>
-      case "viewer-user":
-        return <Badge className="bg-green-500">Visualizador</Badge>
-      default:
-        return <Badge>{userType}</Badge>
-    }
-  }
-
+  // 🔹 Estado de carregamento
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 animate-pulse">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-[200px]" />
           <Skeleton className="h-10 w-[150px]" />
@@ -129,41 +132,21 @@ export function UserList({ searchTerm }: UserListProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>
-                  <Skeleton className="h-4 w-[100px]" />
-                </TableHead>
-                <TableHead>
-                  <Skeleton className="h-4 w-[150px]" />
-                </TableHead>
-                <TableHead>
-                  <Skeleton className="h-4 w-[100px]" />
-                </TableHead>
-                <TableHead>
-                  <Skeleton className="h-4 w-[100px]" />
-                </TableHead>
-                <TableHead className="text-right">
-                  <Skeleton className="h-4 w-[80px] ml-auto" />
-                </TableHead>
+                {["Nome", "Email", "Telefone", "Tipo", "Ações"].map((_, i) => (
+                  <TableHead key={i}>
+                    <Skeleton className="h-4 w-[100px]" />
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {[...Array(5)].map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell>
-                    <Skeleton className="h-6 w-[150px]" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-6 w-[200px]" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-6 w-[100px]" />
-                  </TableCell>
-                  <TableCell>
-                    <Skeleton className="h-6 w-[100px]" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Skeleton className="h-8 w-8 ml-auto" />
-                  </TableCell>
+                  {[...Array(5)].map((__, j) => (
+                    <TableCell key={j}>
+                      <Skeleton className="h-6 w-full" />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))}
             </TableBody>
@@ -173,8 +156,9 @@ export function UserList({ searchTerm }: UserListProps) {
     )
   }
 
+  // 🔹 Render principal
   return (
-    <div className="rounded-md border">
+    <div className="rounded-md border bg-background">
       <Table>
         <TableHeader>
           <TableRow>
@@ -185,6 +169,7 @@ export function UserList({ searchTerm }: UserListProps) {
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
+
         <TableBody>
           {filteredUsers.length > 0 ? (
             filteredUsers.map((user) => (
@@ -203,32 +188,34 @@ export function UserList({ searchTerm }: UserListProps) {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Ações</DropdownMenuLabel>
+
                       <DropdownMenuItem asChild>
                         <Link href={`/dashboard/usuarios/${user.id}`}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver detalhes
+                          <Eye className="mr-2 h-4 w-4" /> Ver detalhes
                         </Link>
                       </DropdownMenuItem>
+
                       <DropdownMenuItem asChild>
                         <Link href={`/dashboard/usuarios/${user.id}/editar`}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Editar
+                          <Pencil className="mr-2 h-4 w-4" /> Editar
                         </Link>
                       </DropdownMenuItem>
+
                       <DropdownMenuSeparator />
+
                       <DropdownMenuItem asChild>
                         <Link href={`/dashboard/usuarios/${user.id}/permissoes`}>
-                          <Shield className="mr-2 h-4 w-4" />
-                          Permissões
+                          <Shield className="mr-2 h-4 w-4" /> Permissões
                         </Link>
                       </DropdownMenuItem>
+
                       <DropdownMenuSeparator />
+
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onSelect={() => setDeleteUserId(user.id)}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Excluir
+                        <Trash2 className="mr-2 h-4 w-4" /> Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -237,14 +224,17 @@ export function UserList({ searchTerm }: UserListProps) {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
-                {searchTerm ? "Nenhum usuário encontrado com o termo de busca." : "Nenhum usuário cadastrado."}
+              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                {searchTerm
+                  ? "Nenhum usuário encontrado com o termo de busca."
+                  : "Nenhum usuário cadastrado."}
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
 
+      {/* 🔹 Confirmação de exclusão */}
       <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

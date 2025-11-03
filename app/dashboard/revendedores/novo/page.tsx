@@ -1,7 +1,5 @@
 "use client"
-
-import type React from "react"
-
+import type { Database } from "@/lib/database.types"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -12,18 +10,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { createSupplier } from "@/lib/services/supplier-service-extended"
+import { supabaseClient } from "@/lib/supabase/client";
 
-export default function NewSupplierPage() {
+export default function NewRevendedorPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    contact: "",
+  const [formData, setFormData] = useState<Database["public"]["Tables"]["revendedores"]["Insert"]>({
+    nome: "",
     email: "",
-    phone: "",
-  })
+    telefone: "",
+    cidade: "",
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -34,32 +32,25 @@ export default function NewSupplierPage() {
     e.preventDefault()
     setIsSubmitting(true)
 
-    try {
-      // Salvar no Supabase
-      await createSupplier({
-        name: formData.name,
-        contact: formData.contact,
-        email: formData.email,
-        phone: formData.phone,
-      })
+    const { error } = await supabaseClient
+  .from("revendedores")
+  .insert([formData]);
 
+    if (error) {
       toast({
-        title: "Revendedor criado",
-        description: "O revendedor foi criado com sucesso.",
-      })
-
-      // Redirect to suppliers list
-      router.push("/dashboard/revendedores")
-    } catch (error) {
-      console.error("Erro ao criar revendedor:", error)
-      toast({
-        title: "Erro ao criar revendedor",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao criar o revendedor. Tente novamente.",
+        title: "Erro ao salvar revendedor",
+        description: error.message,
         variant: "destructive",
       })
-    } finally {
-      setIsSubmitting(false)
+    } else {
+      toast({
+        title: "Revendedor criado",
+        description: "O revendedor foi salvo com sucesso.",
+      })
+      router.push("/dashboard/revendedores")
     }
+
+    setIsSubmitting(false)
   }
 
   return (
@@ -77,18 +68,18 @@ export default function NewSupplierPage() {
       <Card>
         <CardHeader>
           <CardTitle>Informações do Revendedor</CardTitle>
-          <CardDescription>Preencha os dados para cadastrar um novo revendedor/fornecedor</CardDescription>
+          <CardDescription>Preencha os dados para cadastrar um novo revendedor</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Nome do Revendedor</Label>
+                <Label htmlFor="nome">Nome</Label>
                 <Input
-                  id="name"
-                  name="name"
-                  placeholder="Digite o nome do revendedor"
-                  value={formData.name}
+                  id="nome"
+                  name="nome"
+                  placeholder="Nome completo"
+                  value={formData.nome}
                   onChange={handleChange}
                   required
                 />
@@ -96,23 +87,23 @@ export default function NewSupplierPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
-                  <Label htmlFor="contact">Pessoa de Contato</Label>
+                  <Label htmlFor="telefone">Telefone</Label>
                   <Input
-                    id="contact"
-                    name="contact"
-                    placeholder="Nome do contato"
-                    value={formData.contact}
+                    id="telefone"
+                    name="telefone"
+                    placeholder="(00) 00000-0000"
+                    value={formData.telefone}
                     onChange={handleChange}
                   />
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="phone">Telefone</Label>
+                  <Label htmlFor="cidade">Cidade</Label>
                   <Input
-                    id="phone"
-                    name="phone"
-                    placeholder="(00) 00000-0000"
-                    value={formData.phone}
+                    id="cidade"
+                    name="cidade"
+                    placeholder="Cidade"
+                    value={formData.cidade}
                     onChange={handleChange}
                   />
                 </div>
@@ -132,7 +123,7 @@ export default function NewSupplierPage() {
             </div>
 
             <div className="flex gap-4">
-              <Button type="submit" disabled={isSubmitting || !formData.name.trim()}>
+              <Button type="submit" disabled={isSubmitting || !formData.nome.trim()}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

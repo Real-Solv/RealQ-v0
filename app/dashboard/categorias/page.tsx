@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { CategoryList } from "@/components/dashboard/category-list"
 
-export default function CategoriesPage() {
+export default function CategoriasPage() {
   const [searchTerm, setSearchTerm] = useState("")
 
   return (

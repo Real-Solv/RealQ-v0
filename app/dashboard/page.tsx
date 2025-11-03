@@ -54,10 +54,6 @@ export default function DashboardPage() {
           <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
           <p className="text-muted-foreground">Bem-vindo ao sistema de controle de qualidade RealQ</p>
         </div>
-        <Button onClick={handleSetupDatabase} disabled={isSettingUp}>
-          <Database className="mr-2 h-4 w-4" />
-          {isSettingUp ? "Configurando..." : "Configurar Banco de Dados"}
-        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

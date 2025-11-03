@@ -26,12 +26,17 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 
+interface Category {
+  id: string
+  name: string
+}
+
 export default function NewProductPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [categories, setCategories] = useState<any[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [newCategoryName, setNewCategoryName] = useState("")
   const [isCreatingCategory, setIsCreatingCategory] = useState(false)
   const [newCategoryDialogOpen, setNewCategoryDialogOpen] = useState(false)
@@ -47,7 +52,7 @@ export default function NewProductPage() {
     const loadCategories = async () => {
       try {
         setIsLoading(true)
-        const categoriesData = await getCategories()
+        const categoriesData: Category[] = await getCategories()
         setCategories(categoriesData)
       } catch (error) {
         console.error("Erro ao carregar categorias:", error)
@@ -85,8 +90,9 @@ export default function NewProductPage() {
 
     try {
       setIsCreatingCategory(true)
-      const newCategory = await createCategory(newCategoryName)
+      const newCategory: Category = await createCategory(newCategoryName)
 
+      // Atualiza lista de categorias e seleciona a nova criada
       setCategories((prev) => [...prev, newCategory])
       setFormData((prev) => ({ ...prev, categoryId: newCategory.id }))
       setNewCategoryName("")
@@ -125,7 +131,7 @@ export default function NewProductPage() {
         description: "O produto foi criado com sucesso.",
       })
 
-      // Redirect to products list
+      // Redireciona para lista de produtos
       router.push("/dashboard/produtos")
     } catch (error) {
       console.error("Erro ao criar produto:", error)

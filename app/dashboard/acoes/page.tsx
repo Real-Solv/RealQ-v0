@@ -1,5 +1,7 @@
 "use client"
 
+import { Plus } from "lucide-react"
+import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,8 +24,17 @@ export default function ActionsPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Ações</h2>
-          <p className="text-muted-foreground">Gerencie planos de ação e não conformidades</p>
+          <p className="text-muted-foreground">
+            Gerencie planos de ação e não conformidades
+          </p>
         </div>
+
+        <Button asChild>
+          <Link href="/dashboard/acoes/nova">
+            <Plus className="mr-2 h-4 w-4" />
+            Nova Ação
+          </Link>
+        </Button>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row">
@@ -44,22 +55,28 @@ export default function ActionsPage() {
           <TabsTrigger value="action-plans">Planos de Ação</TabsTrigger>
           <TabsTrigger value="non-conformities">Não Conformidades</TabsTrigger>
         </TabsList>
+
         <TabsContent value="action-plans" className="space-y-4">
           <WhiteCard>
             <WhiteCardHeader>
               <WhiteCardTitle>Planos de Ação</WhiteCardTitle>
-              <WhiteCardDescription>Lista de planos de ação para resolver problemas identificados</WhiteCardDescription>
+              <WhiteCardDescription>
+                Lista de planos de ação para resolver problemas identificados
+              </WhiteCardDescription>
             </WhiteCardHeader>
             <WhiteCardContent>
               <ActionsList searchTerm={searchTerm} />
             </WhiteCardContent>
           </WhiteCard>
         </TabsContent>
+
         <TabsContent value="non-conformities" className="space-y-4">
           <WhiteCard>
             <WhiteCardHeader>
               <WhiteCardTitle>Não Conformidades</WhiteCardTitle>
-              <WhiteCardDescription>Lista de não conformidades identificadas nas inspeções</WhiteCardDescription>
+              <WhiteCardDescription>
+                Lista de não conformidades identificadas nas inspeções
+              </WhiteCardDescription>
             </WhiteCardHeader>
             <WhiteCardContent>
               <NonConformitiesList searchTerm={searchTerm} />

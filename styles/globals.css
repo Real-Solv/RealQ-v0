@@ -80,6 +80,21 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+  @keyframes slide-down-fade {
+    0% {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-slide-down-fade {
+    animation: slide-down-fade 0.2s ease-out forwards;
+  }
+  
 }
 
 @layer base {

@@ -3,14 +3,14 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import type { Database } from "@/lib/database.types"
 
-// Configuração temporária para permitir acesso sem autenticação
+// ⚙️ Configuração temporária para permitir acesso sem autenticação
 const BYPASS_AUTH = true // Defina como false para reativar a autenticação
 
 export async function middleware(req: NextRequest) {
-  // Create a response object
+  // Cria o objeto de resposta
   const res = NextResponse.next()
 
-  // Skip middleware for static assets and API routes
+  // Ignora assets estáticos e rotas de API
   if (
     req.nextUrl.pathname.startsWith("/_next") ||
     req.nextUrl.pathname.startsWith("/api") ||
@@ -21,51 +21,59 @@ export async function middleware(req: NextRequest) {
 
   console.log(`[Middleware] Processing request for: ${req.nextUrl.pathname}`)
 
-  // Se o bypass de autenticação estiver ativado, permita o acesso a todas as rotas
+  // 🟢 Se o bypass estiver ativado, libera tudo
   if (BYPASS_AUTH) {
     console.log(`[Middleware] Auth bypass enabled, allowing access to: ${req.nextUrl.pathname}`)
     return res
   }
 
   try {
-    // Create Supabase client
+    // 🔹 Cria o cliente Supabase para middleware
     const supabase = createMiddlewareClient<Database>({ req, res })
 
-    // Get session with additional logging
+    // 🔎 Obtém a sessão atual
     console.log(`[Middleware] Checking session for: ${req.nextUrl.pathname}`)
     const sessionStart = Date.now()
-    const sessionResult = await supabase.auth.getSession()
+    const { data: sessionData, error } = await supabase.auth.getSession()
     const sessionEnd = Date.now()
-    const session = sessionResult.data?.session
+    const session = sessionData?.session
 
     console.log(`[Middleware] Session check took ${sessionEnd - sessionStart}ms`)
 
-    if (sessionResult.error) {
-      console.error(`[Middleware] Error getting session:`, sessionResult.error)
+    if (error) {
+      console.error(`[Middleware] Error getting session:`, error)
     }
 
-    // Log detailed session information for debugging
+    // 🧩 Log detalhado de sessão
     if (session) {
+      const expiresAt = session.expires_at ?? 0 // previne erro de undefined
+      const createdAt = session.user?.created_at ?? "unknown"
+
       console.log(`[Middleware] Session found:`, {
         userId: session.user?.id,
         email: session.user?.email,
-        created: session.created_at,
-        expires: new Date(session.expires_at * 1000).toISOString(),
-        remaining: Math.floor((session.expires_at * 1000 - Date.now()) / 1000) + "s",
+        created: createdAt,
+        expires: new Date(expiresAt * 1000).toISOString(),
+        remaining:
+          expiresAt > 0
+            ? Math.floor((expiresAt * 1000 - Date.now()) / 1000) + "s"
+            : "unknown",
       })
     } else {
       console.log(`[Middleware] No session found`)
     }
 
-    // Define protected and auth routes
+    // 🔒 Define rotas protegidas e rotas de autenticação
     const isAuthRoute = ["/login", "/cadastro", "/recuperar-senha"].includes(req.nextUrl.pathname)
     const isProtectedRoute = req.nextUrl.pathname.startsWith("/dashboard")
 
     console.log(
-      `[Middleware] Route type: ${isAuthRoute ? "Auth route" : isProtectedRoute ? "Protected route" : "Public route"}`,
+      `[Middleware] Route type: ${
+        isAuthRoute ? "Auth route" : isProtectedRoute ? "Protected route" : "Public route"
+      }`
     )
 
-    // Handle unauthenticated user trying to access protected route
+    // 🚫 Usuário não autenticado acessando rota protegida
     if (!session && isProtectedRoute) {
       console.log(`[Middleware] Redirecting unauthenticated user from ${req.nextUrl.pathname} to /login`)
       const redirectUrl = new URL("/login", req.url)
@@ -73,7 +81,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
-    // Handle authenticated user trying to access auth route
+    // 🔁 Usuário autenticado acessando rota de login/cadastro
     if (session && isAuthRoute) {
       console.log(`[Middleware] Redirecting authenticated user from ${req.nextUrl.pathname} to /dashboard`)
       return NextResponse.redirect(new URL("/dashboard", req.url))
@@ -82,7 +90,6 @@ export async function middleware(req: NextRequest) {
     console.log(`[Middleware] Request allowed to proceed to: ${req.nextUrl.pathname}`)
     return res
   } catch (error) {
-    // In case of error, log and allow the request to continue
     console.error("[Middleware] Error in middleware:", error)
     return res
   }
