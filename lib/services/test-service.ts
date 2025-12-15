@@ -45,11 +45,14 @@ export async function getTestById(id: string): Promise<Test | null> {
   return data
 }
 
-// ========================================================
-// 🔹 Criar novo teste
-// ========================================================
-export async function createTest(data: { name: string; description?: string }): Promise<Test> {
-  const { data: inserted, error } = await supabase
+
+export async function createTestWithProducts(data: {
+  name: string
+  description?: string
+  productIds: string[]
+}): Promise<Test> {
+  // 1️⃣ Cria o teste
+  const { data: insertedTest, error: testError } = await supabase
     .from("tests")
     .insert({
       name: data.name,
@@ -58,15 +61,35 @@ export async function createTest(data: { name: string; description?: string }): 
     .select()
     .single()
 
-  if (error) {
-    console.error("Erro ao criar teste:", error)
-    throw error
+  if (testError) {
+    console.error("Erro ao criar teste:", testError)
+    throw testError
   }
 
-  if (!inserted) throw new Error("Nenhum registro retornado ao criar teste.")
+  if (!insertedTest) {
+    throw new Error("Teste não foi criado.")
+  }
 
-  return inserted
+  // 2️⃣ Cria os vínculos na tabela test_products
+  if (data.productIds.length > 0) {
+    const relations = data.productIds.map((productId) => ({
+      test_id: insertedTest.id,
+      product_id: productId,
+    }))
+
+    const { error: relationError } = await supabase
+      .from("test_products")
+      .insert(relations)
+
+    if (relationError) {
+      console.error("Erro ao relacionar produtos ao teste:", relationError)
+      throw relationError
+    }
+  }
+
+  return insertedTest
 }
+
 
 // ========================================================
 // 🔹 Atualizar teste existente
