@@ -5,8 +5,12 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import type { Database } from "@/lib/database.types"
 import { ArrowLeft, Pencil, Package } from "lucide-react"
+import { getCategoryByIdWithProductCount } from "@/lib/services/category-service-extended"
 
-type Category = Database["public"]["Tables"]["categories"]["Row"]
+type CategoryWithCount =
+  Database["public"]["Tables"]["categories"]["Row"] & {
+    product_count: number
+  }
 
 export default function CategoryDetailsPage() {
   const params = useParams()
@@ -15,25 +19,30 @@ export default function CategoryDetailsPage() {
   const rawId = params?.id ?? ""
   const categoryId = Array.isArray(rawId) ? rawId[0] : rawId
 
-  const [category, setCategory] = useState<Category | null>(null)
+  const [category, setCategory] = useState<CategoryWithCount | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Função para carregar categoria
   const loadCategory = async () => {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("id", categoryId)
-      .single()
+    try {
+      setLoading(true)
+      setError(null)
 
-    if (error) {
-      setError(error.message)
-    } else {
+      const data = await getCategoryByIdWithProductCount(categoryId)
+
+      if (!data) {
+        setCategory(null)
+        return
+      }
+
       setCategory(data)
+    } catch (err) {
+      console.error(err)
+      setError("Erro ao carregar categoria")
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   // Load inicial
@@ -134,7 +143,7 @@ export default function CategoryDetailsPage() {
               Quantidade total de produtos
             </h3>
             <p className="text-2xl font-bold">
-              {category.produto_quantidade ?? 0}
+              {category.product_count  ?? 0}
             </p>
           </div>
         </div>

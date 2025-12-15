@@ -143,4 +143,34 @@ export async function getCategoriesWithProductCount(): Promise<
     throw error
   }
 }
-  
+
+export async function getCategoryByIdWithProductCount(
+  categoryId: string
+): Promise<(Category & { product_count: number }) | null> {
+  try {
+    const { data, error } = await supabaseClient
+      .from("categories")
+      .select(`
+        id,
+        name,
+        description,
+        created_at,
+        products:products(id)
+      `)
+      .eq("id", categoryId)
+      .single()
+      .throwOnError()
+
+    if (!data) return null
+
+    const category = data as CategoryWithJoinedProducts
+
+    return {
+      ...category,
+      product_count: category.products?.length || 0,
+    }
+  } catch (error) {
+    console.error("Erro ao buscar categoria por ID com contagem:", error)
+    throw error
+  }
+}
