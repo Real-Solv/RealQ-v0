@@ -75,26 +75,26 @@ export async function createCategory(
 
 // --------------------------------------------------
 // Atualizar categoria (mantido — single permanece)
-// --------------------------------------------------
-export async function updateCategory(
-  id: string,
-  name: string
-): Promise<Category> {
-  try {
-    const { data, error } = await supabaseClient
-      .from("categories")
-      .update({ name })
-      .eq("id", id)
-      .select("*")
-      .single() // 👈 Aqui também precisa do single()
+// // --------------------------------------------------
+// export async function updateCategory(
+//   id: string,
+//   name: string
+// ): Promise<Category> {
+//   try {
+//     const { data, error } = await supabaseClient
+//       .from("categories")
+//       .update({ name })
+//       .eq("id", id)
+//       .select("*")
+//       .single() // 👈 Aqui também precisa do single()
 
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error(`Erro ao atualizar categoria com ID ${id}:`, error)
-    throw error
-  }
-}
+//     if (error) throw error
+//     return data
+//   } catch (error) {
+//     console.error(`Erro ao atualizar categoria com ID ${id}:`, error)
+//     throw error
+//   }
+// }
 
 // --------------------------------------------------
 // Excluir categoria
