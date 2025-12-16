@@ -5,8 +5,15 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import type { Database } from "@/lib/database.types"
 import { ArrowLeft, Pencil, Package } from "lucide-react"
+import { productService } from "@/lib/services/product-service"
+import { getCategoryByIdWithProductCount } from "@/lib/services/category-service-extended"
 
-type Category = Database["public"]["Tables"]["categories"]["Row"]
+type CategoryWithCount =
+  Database["public"]["Tables"]["categories"]["Row"] & {
+    product_count: number
+  }
+
+type Product = Database["public"]["Tables"]["products"]["Row"]
 
 export default function CategoryDetailsPage() {
   const params = useParams()
@@ -15,31 +22,56 @@ export default function CategoryDetailsPage() {
   const rawId = params?.id ?? ""
   const categoryId = Array.isArray(rawId) ? rawId[0] : rawId
 
-  const [category, setCategory] = useState<Category | null>(null)
+  const [category, setCategory] = useState<CategoryWithCount | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [products, setProducts] = useState<Product[]>([])
+  const [productsLoading, setProductsLoading] = useState(true)
+  const [productsError, setProductsError] = useState<string | null>(null)
+
+  const loadProducts = async () => {
+    try {
+      setProductsLoading(true)
+      setProductsError(null)
+
+      const data = await productService.getByCategory(categoryId)
+      setProducts(data)
+    } catch (err) {
+      console.error(err)
+      setProductsError("Erro ao carregar produtos da categoria")
+    } finally {
+      setProductsLoading(false)
+    }
+  }
+
   // Função para carregar categoria
   const loadCategory = async () => {
-    const { data, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("id", categoryId)
-      .single()
+    try {
+      setLoading(true)
+      setError(null)
 
-    if (error) {
-      setError(error.message)
-    } else {
+      const data = await getCategoryByIdWithProductCount(categoryId)
+
+      if (!data) {
+        setCategory(null)
+        return
+      }
+
       setCategory(data)
+    } catch (err) {
+      console.error(err)
+      setError("Erro ao carregar categoria")
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   // Load inicial
   useEffect(() => {
     if (!categoryId) return
     loadCategory()
+    loadProducts()
   }, [categoryId])
 
   // 🔴 REALTIME: atualiza automaticamente quando products ou categories mudarem
@@ -58,6 +90,7 @@ export default function CategoryDetailsPage() {
         },
         () => {
           loadCategory()
+          loadProducts()
         },
       )
       .on(
@@ -134,7 +167,7 @@ export default function CategoryDetailsPage() {
               Quantidade total de produtos
             </h3>
             <p className="text-2xl font-bold">
-              {category.produto_quantidade ?? 0}
+              {category.product_count  ?? 0}
             </p>
           </div>
         </div>
@@ -164,9 +197,45 @@ export default function CategoryDetailsPage() {
           <h3 className="text-lg font-semibold mb-2">
             Produtos Relacionados
           </h3>
-          <p className="text-gray-500">
-            (Esta seção pode futuramente listar produtos dessa categoria.)
-          </p>
+          {productsLoading && (
+            <p className="text-gray-500">Carregando produtos...</p>
+          )}
+
+          {productsError && (
+            <p className="text-red-500">{productsError}</p>
+          )}
+
+          {!productsLoading && products.length === 0 && (
+            <p className="text-gray-500">
+              Nenhum produto cadastrado nesta categoria.
+            </p>
+          )}
+
+          {products.length > 0 && (
+            <div className="space-y-3">
+              {products.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between border rounded-lg p-4 hover:bg-gray-50"
+                >
+                  <div>
+                    <p className="font-medium">{product.name}</p>
+
+                    {product.description && (
+                      <p className="text-sm text-gray-500">
+                        {product.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <span className="text-sm text-gray-400">
+                    {new Date(product.created_at).toLocaleDateString("pt-BR")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
         </div>
       </div>
     </div>

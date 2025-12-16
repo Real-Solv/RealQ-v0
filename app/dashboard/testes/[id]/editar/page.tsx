@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { productService, type Product } from "@/lib/services/product-service"
 
-import { getTestById, updateTest } from "@/lib/services/test-service"
+import { getTestById, updateTestWithProducts, getProductIdsByTest } from "@/lib/services/test-service"
 import type { Test } from "@/lib/services/test-service"
 
 export default function EditTestPage() {
@@ -17,6 +18,8 @@ export default function EditTestPage() {
   const id = params?.id as string
 
   const { toast } = useToast()
+  const [products, setProducts] = useState<Product[]>([])
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([])
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -29,71 +32,73 @@ export default function EditTestPage() {
   useEffect(() => {
     if (!id) return
 
-    let mounted = true
-
     ;(async () => {
       try {
-        const data = await getTestById(id)
+        const test = await getTestById(id)
+        if (!test) throw new Error("Teste não encontrado")
 
-        if (!data) {
-          toast({
-            title: "Não encontrado",
-            description: "Teste não foi encontrado.",
-            variant: "destructive",
-          })
-          router.push("/dashboard/testes")
-          return
-        }
+        setName(test.name)
+        setDescription(test.description ?? "")
 
-        if (!mounted) return
+        const productsData = await productService.getAllWithCategory()
+        setProducts(productsData)
 
-        setName(data.name)
-        setDescription(data.description ?? "")
-      } catch (err) {
-        console.error(err)
+        const relatedProducts = await getProductIdsByTest(id)
+        setSelectedProducts(relatedProducts)
+
+      } catch (error) {
         toast({
           title: "Erro",
-          description: "Não foi possível carregar o teste.",
+          description: "Erro ao carregar dados do teste.",
           variant: "destructive",
         })
+        router.push("/dashboard/testes")
       } finally {
-        if (mounted) setLoading(false)
+        setLoading(false)
       }
     })()
+  }, [id])
 
-    return () => {
-      mounted = false
-    }
-  }, [id, router, toast])
+  
+
 
   // ------------------------------------------
   // 🔹 Salvar edição
   // ------------------------------------------
-  async function handleUpdate() {
-    setSaving(true)
-    try {
-      await updateTest(id, {
-        name,
-        description,
-      })
+async function handleUpdate() {
+  setSaving(true)
+  try {
+    await updateTestWithProducts({
+      id,
+      name,
+      description,
+      productIds: selectedProducts,
+    })
 
-      toast({
-        title: "Atualizado",
-        description: "O teste foi atualizado com sucesso.",
-      })
+    toast({
+      title: "Atualizado",
+      description: "Teste atualizado com sucesso.",
+    })
 
-      router.push(`/dashboard/testes/${id}`)
-    } catch (error) {
-      console.error(error)
-      toast({
-        title: "Erro ao salvar",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      })
-    } finally {
-      setSaving(false)
-    }
+    router.push(`/dashboard/testes/${id}`)
+  } catch (error) {
+    toast({
+      title: "Erro ao salvar",
+      description: "Erro ao atualizar teste.",
+      variant: "destructive",
+    })
+  } finally {
+    setSaving(false)
   }
+}
+const toggleProduct = (productId: string) => {
+  setSelectedProducts((prev) =>
+    prev.includes(productId)
+      ? prev.filter((id) => id !== productId)
+      : [...prev, productId]
+  )
+}
+
 
   if (loading) return <p>Carregando...</p>
 
@@ -117,6 +122,30 @@ export default function EditTestPage() {
         onChange={(e) => setDescription(e.target.value)}
         className="mb-6"
       />
+
+      <div className="space-y-2">
+  <label className="font-medium">Produtos relacionados</label>
+
+  <div className="max-h-60 overflow-y-auto border rounded p-3 space-y-2">
+    {products.map((product) => (
+      <label key={product.id} className="flex gap-2 items-center">
+        <input
+          type="checkbox"
+          checked={selectedProducts.includes(product.id)}
+          onChange={() => toggleProduct(product.id)}
+        />
+        <span>
+          {product.name}{" "}
+          <span className="text-muted-foreground">
+            ({product.category.name})
+          </span>
+        </span>
+      </label>
+    ))}
+  </div>
+</div>
+
+      
 
       {/* Botões */}
       <div className="flex gap-3">

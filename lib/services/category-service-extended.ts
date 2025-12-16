@@ -75,26 +75,26 @@ export async function createCategory(
 
 // --------------------------------------------------
 // Atualizar categoria (mantido — single permanece)
-// --------------------------------------------------
-export async function updateCategory(
-  id: string,
-  name: string
-): Promise<Category> {
-  try {
-    const { data, error } = await supabaseClient
-      .from("categories")
-      .update({ name })
-      .eq("id", id)
-      .select("*")
-      .single() // 👈 Aqui também precisa do single()
+// // --------------------------------------------------
+// export async function updateCategory(
+//   id: string,
+//   name: string
+// ): Promise<Category> {
+//   try {
+//     const { data, error } = await supabaseClient
+//       .from("categories")
+//       .update({ name })
+//       .eq("id", id)
+//       .select("*")
+//       .single() // 👈 Aqui também precisa do single()
 
-    if (error) throw error
-    return data
-  } catch (error) {
-    console.error(`Erro ao atualizar categoria com ID ${id}:`, error)
-    throw error
-  }
-}
+//     if (error) throw error
+//     return data
+//   } catch (error) {
+//     console.error(`Erro ao atualizar categoria com ID ${id}:`, error)
+//     throw error
+//   }
+// }
 
 // --------------------------------------------------
 // Excluir categoria
@@ -143,4 +143,34 @@ export async function getCategoriesWithProductCount(): Promise<
     throw error
   }
 }
-  
+
+export async function getCategoryByIdWithProductCount(
+  categoryId: string
+): Promise<(Category & { product_count: number }) | null> {
+  try {
+    const { data, error } = await supabaseClient
+      .from("categories")
+      .select(`
+        id,
+        name,
+        description,
+        created_at,
+        products:products(id)
+      `)
+      .eq("id", categoryId)
+      .single()
+      .throwOnError()
+
+    if (!data) return null
+
+    const category = data as CategoryWithJoinedProducts
+
+    return {
+      ...category,
+      product_count: category.products?.length || 0,
+    }
+  } catch (error) {
+    console.error("Erro ao buscar categoria por ID com contagem:", error)
+    throw error
+  }
+}

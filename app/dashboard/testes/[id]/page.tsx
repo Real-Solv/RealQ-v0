@@ -10,11 +10,13 @@ import { notFound } from "next/navigation"
 export default async function TesteDetailPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }> // ✅ Promise aqui
 }) {
-  const { id } = params // ✅ Correto
+  const { id } = await params // ✅ Await aqui
 
-  const test = (await getTestById(id)) as Test | null
+  console.log(id)
+
+  const test = await getTestById(id)
 
   if (!test) {
     notFound()

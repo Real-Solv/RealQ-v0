@@ -1,10 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { Plus } from "lucide-react"
 
-import { supabaseClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import {
   WhiteCard,
@@ -14,46 +13,10 @@ import {
   WhiteCardTitle,
 } from "@/components/ui/white-card"
 import { Input } from "@/components/ui/input"
+import { RevendedorList } from "@/components/dashboard/revendedor-list"
 
-interface Revendedor {
-  id: string
-  nome: string
-  email: string
-  telefone: string
-  cidade: string
-  created_at: string
-}
-
-export default function SuppliersPage() {
+export default function RevendedoresPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [revendedores, setRevendedores] = useState<Revendedor[]>([])
-  const [loading, setLoading] = useState(true)
-
-  // Busca os revendedores do Supabase
-  useEffect(() => {
-    async function fetchRevendedores() {
-      const { data, error } = await supabaseClient
-        .from("revendedores")
-        .select("*")
-        .order("created_at", { ascending: false })
-
-      if (error) {
-        console.error("Erro ao carregar revendedores:", error)
-      } else {
-        setRevendedores(data || [])
-      }
-      setLoading(false)
-    }
-
-    fetchRevendedores()
-  }, [])
-
-  // Filtra pelo termo de busca
-  const filtered = revendedores.filter(r =>
-    r.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (r.email?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (r.cidade?.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
 
   return (
     <div className="space-y-4">
@@ -64,6 +27,7 @@ export default function SuppliersPage() {
             Gerencie os revendedores/fornecedores dos produtos
           </p>
         </div>
+
         <Button asChild>
           <Link href="/dashboard/revendedores/novo">
             <Plus className="mr-2 h-4 w-4" />
@@ -89,23 +53,11 @@ export default function SuppliersPage() {
         <WhiteCardHeader>
           <WhiteCardTitle>Todos os Revendedores</WhiteCardTitle>
           <WhiteCardDescription>
-            Lista de todos os revendedores/fornecedores cadastrados no sistema
+            Lista de todos os revendedores/fornecedores cadastrados
           </WhiteCardDescription>
         </WhiteCardHeader>
         <WhiteCardContent>
-          {loading ? (
-            <p>Carregando revendedores...</p>
-          ) : filtered.length === 0 ? (
-            <p>Nenhum revendedor encontrado.</p>
-          ) : (
-            <ul className="space-y-2">
-              {filtered.map((r) => (
-                <li key={r.id} className="border p-2 rounded">
-                  <strong>{r.nome}</strong> — {r.email} — {r.telefone} — {r.cidade}
-                </li>
-              ))}
-            </ul>
-          )}
+          <RevendedorList searchTerm={searchTerm} />
         </WhiteCardContent>
       </WhiteCard>
     </div>

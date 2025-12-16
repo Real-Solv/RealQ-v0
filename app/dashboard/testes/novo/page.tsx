@@ -2,10 +2,12 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Loader2 } from "lucide-react"
+import { productService, type Product } from "@/lib/services/product-service"
+import { createTestWithProducts } from "@/lib/services/test-service"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,21 +25,36 @@ export default function NewTestPage() {
     name: "",
     description: "",
   })
+  const [products, setProducts] = useState<(Product & { category: { name: string } })[]>([])
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const data = await productService.getAllWithCategory()
+        setProducts(data)
+      } catch (error) {
+        console.error("Erro ao carregar produtos:", error)
+      }
+    }
+
+    loadProducts()
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
-      // Salvar no Supabase
-      await createTest({
+      await createTestWithProducts({
         name: formData.name,
         description: formData.description,
+        productIds: selectedProducts,
       })
 
       toast({
@@ -45,18 +62,29 @@ export default function NewTestPage() {
         description: "O teste foi criado com sucesso.",
       })
 
-      // Redirect to tests list
       router.push("/dashboard/testes")
     } catch (error) {
       console.error("Erro ao criar teste:", error)
       toast({
         title: "Erro ao criar teste",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao criar o teste. Tente novamente.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Ocorreu um erro ao criar o teste.",
         variant: "destructive",
       })
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+
+  const toggleProduct = (productId: string) => {
+    setSelectedProducts((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+    )
   }
 
   return (
@@ -103,6 +131,38 @@ export default function NewTestPage() {
                 />
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label>Produtos relacionados</Label>
+
+              <div className="max-h-60 overflow-y-auto rounded-md border p-3 space-y-2">
+                {products.map((product) => (
+                  <label
+                    key={product.id}
+                    className="flex items-center gap-2 text-sm cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedProducts.includes(product.id)}
+                      onChange={() => toggleProduct(product.id)}
+                    />
+                    <span>
+                      {product.name}
+                      <span className="text-muted-foreground">
+                        {" "}({product.category.name})
+                      </span>
+                    </span>
+                  </label>
+                ))}
+
+                {products.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum produto cadastrado.
+                  </p>
+                )}
+              </div>
+            </div>
+
 
             <div className="flex gap-4">
               <Button type="submit" disabled={isSubmitting || !formData.name.trim()}>
