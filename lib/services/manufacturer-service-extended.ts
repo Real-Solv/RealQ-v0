@@ -4,16 +4,19 @@ import { supabaseClient } from "@/lib/supabase/client"
 export interface Manufacturer {
   id: string
   name: string
-  contact: string
-  email: string
-  phone: string
+  address: string | null
+  email: string | null
+  phone: string | null
   created_at: string
 }
 
 // Função para obter todos os fabricantes
 export async function getAllManufacturers(): Promise<Manufacturer[]> {
   try {
-    const { data, error } = await supabaseClient.from("manufacturers").select("*").order("name")
+    const { data, error } = await supabaseClient
+      .from("manufacturers")
+      .select("*")
+      .order("name")
 
     if (error) {
       throw error
@@ -27,13 +30,19 @@ export async function getAllManufacturers(): Promise<Manufacturer[]> {
 }
 
 // Função para obter um fabricante específico por ID
-export async function getManufacturerById(id: string): Promise<Manufacturer | null> {
+export async function getManufacturerById(
+  id: string,
+): Promise<Manufacturer | null> {
   try {
-    const { data, error } = await supabaseClient.from("manufacturers").select("*").eq("id", id).single()
+    const { data, error } = await supabaseClient
+      .from("manufacturers")
+      .select("*")
+      .eq("id", id)
+      .single()
 
     if (error) {
-      if (error.code === "PGRST116") {
-        return null // Fabricante não encontrado
+      if ((error as any).code === "PGRST116") {
+        return null
       }
       throw error
     }
@@ -48,18 +57,18 @@ export async function getManufacturerById(id: string): Promise<Manufacturer | nu
 // Função para criar um fabricante
 export async function createManufacturer(data: {
   name: string
-  contact?: string
-  email?: string
-  phone?: string
+  address?: string | null
+  email?: string | null
+  phone?: string | null
 }): Promise<Manufacturer> {
   try {
     const { data: manufacturer, error } = await supabaseClient
       .from("manufacturers")
       .insert({
         name: data.name,
-        contact: data.contact || "",
-        email: data.email || "",
-        phone: data.phone || "",
+        address: data.address ?? null,
+        email: data.email ?? null,
+        phone: data.phone ?? null,
       })
       .select()
       .single()
@@ -79,32 +88,24 @@ export async function createManufacturer(data: {
 export async function updateManufacturer(
   id: string,
   data: {
-    name?: string
-    contact?: string
-    email?: string
-    phone?: string
+    name: string
+    address?: string | null
+    email?: string | null
+    phone?: string | null
   },
-): Promise<Manufacturer> {
-  try {
-    const { data: manufacturer, error } = await supabaseClient
-      .from("manufacturers")
-      .update({
-        name: data.name,
-        contact: data.contact,
-        email: data.email,
-        phone: data.phone,
-      })
-      .eq("id", id)
-      .select()
-      .single()
+): Promise<void> {
+  const { error } = await supabaseClient
+    .from("manufacturers")
+    .update({
+      name: data.name,
+      address: data.address ?? null,
+      email: data.email ?? null,
+      phone: data.phone ?? null,
+    })
+    .eq("id", id)
 
-    if (error) {
-      throw error
-    }
-
-    return manufacturer
-  } catch (error) {
-    console.error(`Erro ao atualizar fabricante com ID ${id}:`, error)
+  if (error) {
+    console.error("Erro ao atualizar fabricante:", error)
     throw error
   }
 }
@@ -112,7 +113,10 @@ export async function updateManufacturer(
 // Função para excluir um fabricante
 export async function deleteManufacturer(id: string): Promise<void> {
   try {
-    const { error } = await supabaseClient.from("manufacturers").delete().eq("id", id)
+    const { error } = await supabaseClient
+      .from("manufacturers")
+      .delete()
+      .eq("id", id)
 
     if (error) {
       throw error
