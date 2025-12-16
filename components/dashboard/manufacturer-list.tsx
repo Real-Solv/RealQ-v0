@@ -74,9 +74,10 @@ export function ManufacturerList({ searchTerm }: ManufacturerListProps) {
       const filtered = manufacturers.filter(
         (manufacturer) =>
           manufacturer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (manufacturer.contact && manufacturer.contact.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (manufacturer.email && manufacturer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (manufacturer.phone && manufacturer.phone.toLowerCase().includes(searchTerm.toLowerCase())),
+          manufacturer.contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          manufacturer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          manufacturer.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          manufacturer.address?.toLowerCase().includes(searchTerm.toLowerCase())
       )
       setFilteredManufacturers(filtered)
     }
@@ -134,6 +135,7 @@ export function ManufacturerList({ searchTerm }: ManufacturerListProps) {
                 <TableHead className="text-right">
                   <Skeleton className="h-4 w-[80px] ml-auto" />
                 </TableHead>
+                
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -172,6 +174,7 @@ export function ManufacturerList({ searchTerm }: ManufacturerListProps) {
             <TableHead>Contato</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Telefone</TableHead>
+            <TableHead>Endereço</TableHead>
             <TableHead className="text-right">Ações</TableHead>
           </TableRow>
         </TableHeader>
@@ -183,6 +186,7 @@ export function ManufacturerList({ searchTerm }: ManufacturerListProps) {
                 <TableCell>{manufacturer.contact || "-"}</TableCell>
                 <TableCell>{manufacturer.email || "-"}</TableCell>
                 <TableCell>{manufacturer.phone || "-"}</TableCell>
+                <TableCell>{manufacturer.address || "-"}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -220,7 +224,7 @@ export function ManufacturerList({ searchTerm }: ManufacturerListProps) {
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
+              <TableCell colSpan={6} className="h-24 text-center">
                 {searchTerm ? "Nenhum fabricante encontrado com o termo de busca." : "Nenhum fabricante cadastrado."}
               </TableCell>
             </TableRow>

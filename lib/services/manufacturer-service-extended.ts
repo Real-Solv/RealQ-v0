@@ -1,12 +1,12 @@
 import { supabaseClient } from "@/lib/supabase/client"
 
-// Tipo para o fabricante (produtor)
 export interface Manufacturer {
   id: string
   name: string
   contact: string
   email: string
   phone: string
+  address: string | null
   created_at: string
 }
 
@@ -17,6 +17,7 @@ export async function updateManufacturer(
     email?: string | null
     telefone?: string | null
     contact?: string | null
+    address?: string | null
   },
 ): Promise<void> {
   const { error } = await supabaseClient
@@ -26,6 +27,7 @@ export async function updateManufacturer(
       email: data.email,
       phone: data.telefone,
       contact: data.contact,
+      address: data.address,
     })
     .eq("id", id)
 
@@ -76,7 +78,9 @@ export async function createManufacturer(data: {
   contact?: string
   email?: string
   phone?: string
+  address?: string
 }): Promise<Manufacturer> {
+  console.log(data)
   try {
     const { data: manufacturer, error } = await supabaseClient
       .from("manufacturers")
@@ -85,6 +89,7 @@ export async function createManufacturer(data: {
         contact: data.contact || "",
         email: data.email || "",
         phone: data.phone || "",
+        address: data.address || null,
       })
       .select()
       .single()

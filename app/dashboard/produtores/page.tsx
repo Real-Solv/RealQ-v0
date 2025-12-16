@@ -35,7 +35,7 @@ export default function ManufacturersPage() {
 
       <div className="flex flex-col gap-4 sm:flex-row">
         <Input
-          placeholder="Buscar por nome, contato ou email..."
+          placeholder="Buscar por nome, contato, email ou endereço..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"

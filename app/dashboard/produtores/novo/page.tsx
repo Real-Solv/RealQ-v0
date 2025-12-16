@@ -23,6 +23,7 @@ export default function NewManufacturerPage() {
     contact: "",
     email: "",
     phone: "",
+    address: "",
   })
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,6 +42,7 @@ export default function NewManufacturerPage() {
         contact: formData.contact,
         email: formData.email,
         phone: formData.phone,
+        address: formData.address,
       })
 
       toast({
@@ -126,6 +128,17 @@ export default function NewManufacturerPage() {
                   type="email"
                   placeholder="email@exemplo.com"
                   value={formData.email}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="address">Endereço</Label>
+                <Input
+                  id="address"
+                  name="address"
+                  placeholder="Rua, número, bairro, cidade"
+                  value={formData.address}
                   onChange={handleChange}
                 />
               </div>
