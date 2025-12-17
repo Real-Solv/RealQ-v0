@@ -175,6 +175,7 @@ export function CategoryList({ searchTerm }: CategoryListProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Nome</TableHead>
+            <TableHead>Descrição</TableHead>
             <TableHead>Produtos</TableHead>
             <TableHead>Data de Cadastro</TableHead>
             <TableHead className="text-right">Ações</TableHead>
@@ -186,6 +187,9 @@ export function CategoryList({ searchTerm }: CategoryListProps) {
             filteredCategories.map((category) => (
               <TableRow key={category.id}>
                 <TableCell className="font-medium">{category.name}</TableCell>
+                <TableCell className="max-w-[280px] truncate text-muted-foreground">
+                  {category.description || "—"}
+                </TableCell>
                 <TableCell>{category.product_count}</TableCell>
                 <TableCell>
                   {new Date(category.created_at).toLocaleDateString("pt-BR")}
