@@ -222,6 +222,16 @@ type CreateInspectionDTO = {
   appearance: string
 }
 
+function resolveInspectionStatus(expiryDate: string): string {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const expiry = new Date(expiryDate)
+  expiry.setHours(0, 0, 0, 0)
+
+  return expiry < today ? "Vencido" : "Pendente"
+}
+
 export async function createInspection(data: CreateInspectionDTO) {
   const {
     data: { user },
@@ -232,6 +242,8 @@ export async function createInspection(data: CreateInspectionDTO) {
     throw new Error("Usuário não autenticado")
   }
 
+  const status = resolveInspectionStatus(data.expiry_date)
+
   const { error } = await supabaseClient
     .from("inspections")
     .insert({
@@ -240,6 +252,7 @@ export async function createInspection(data: CreateInspectionDTO) {
       revendedor_id: data.revendedor_id,
       manufacturer_id: data.manufacturer_id,
       expiry_date: data.expiry_date,
+      status, // 👈 AQUI ESTÁ A REGRA
       color: data.color,
       odor: data.odor,
       appearance: data.appearance,
@@ -250,6 +263,7 @@ export async function createInspection(data: CreateInspectionDTO) {
     throw error
   }
 }
+
 
 // ---------------------- PRODUCTS ----------------------
 
