@@ -96,23 +96,22 @@ export async function addTestsToInspection(
     inspection_id: inspectionId,
     test_id: t.testId,
     result: t.result,
-    notes: t.notes || "",
-    created_at: new Date().toISOString(),
+    notes: t.notes ?? null,
   }))
 
-  const { error } = await supabaseClient.from("inspection_tests").insert(testRecords)
-  if (error) throw new Error(`Erro ao adicionar testes: ${error.message}`)
+  const { error } = await supabaseClient
+    .from("inspection_tests")
+    .upsert(testRecords, {
+      onConflict: "inspection_id,test_id",
+    })
 
-  const { error: updateError } = await supabaseClient
-    .from("inspections")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", inspectionId)
-
-  if (updateError)
-    throw new Error(`Erro ao atualizar timestamp da inspeção: ${updateError.message}`)
+  if (error) {
+    throw new Error(`Erro ao salvar testes da inspeção: ${error.message}`)
+  }
 
   return { success: true }
 }
+
 
 export interface InspectionListItem {
   id: string

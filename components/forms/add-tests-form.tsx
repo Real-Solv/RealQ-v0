@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast"
 import { Checkbox } from "@/components/ui/checkbox"
 import { addTestsToInspection, getAvailableTests } from "@/lib/services/inspection-service-extended"
 import { Skeleton } from "@/components/ui/skeleton"
-import { inspect } from "util"
 
 interface AddTestsFormProps {
   inspection: any
@@ -125,77 +124,81 @@ export function AddTestsForm({ inspection, onComplete }: AddTestsFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label>Selecione os testes a serem realizados</Label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border rounded-md p-4">
-            {availableTests.length > 0 ? (
-              availableTests.map((test) => (
-                <div key={test.id} className="flex items-start space-x-2">
-                  <Checkbox
-                    id={`test-${test.id}`}
-                    checked={selectedTests.includes(test.id)}
-                    onCheckedChange={(checked) => handleTestSelection(test.id, checked as boolean)}
-                  />
-                  <div className="grid gap-1.5 leading-none">
-                    <Label htmlFor={`test-${test.id}`} className="text-sm font-medium">
-                      {test.name}
-                    </Label>
-                    <p className="text-xs text-muted-foreground">{test.description}</p>
+    <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[70vh]">
+      {/* Área com scroll */}
+      <div className="flex-1 overflow-y-auto pr-2 space-y-6">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Selecione os testes a serem realizados</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border rounded-md p-4">
+              {availableTests.length > 0 ? (
+                availableTests.map((test) => (
+                  <div key={test.id} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={`test-${test.id}`}
+                      checked={selectedTests.includes(test.id)}
+                      onCheckedChange={(checked) => handleTestSelection(test.id, checked as boolean)}
+                    />
+                    <div className="grid gap-1.5 leading-none">
+                      <Label htmlFor={`test-${test.id}`} className="text-sm font-medium cursor-pointer">
+                        {test.name}
+                      </Label>
+                      <p className="text-xs text-muted-foreground">{test.description}</p>
+                    </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground col-span-2 text-center py-4">
-                Nenhum teste disponível. Cadastre testes primeiro.
-              </p>
-            )}
+                ))
+              ) : (
+                <p className="text-muted-foreground col-span-2 text-center py-4">
+                  Nenhum teste disponível. Cadastre testes primeiro.
+                </p>
+              )}
+            </div>
           </div>
         </div>
+
+        {selectedTests.length > 0 && (
+          <div className="space-y-4">
+            <Label>Resultados dos testes selecionados</Label>
+            <div className="space-y-6">
+              {selectedTests.map((testId) => {
+                const test = availableTests.find((t) => t.id === testId)
+                if (!test) return null
+
+                return (
+                  <div key={testId} className="border rounded-md p-4 space-y-3 bg-muted/30">
+                    <h3 className="font-medium">{test.name}</h3>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`result-${testId}`}>Resultado</Label>
+                      <Input
+                        id={`result-${testId}`}
+                        value={testResults[testId]?.result || ""}
+                        onChange={(e) => handleResultChange(testId, "result", e.target.value)}
+                        placeholder="Digite o resultado do teste"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`notes-${testId}`}>Observações</Label>
+                      <Textarea
+                        id={`notes-${testId}`}
+                        value={testResults[testId]?.notes || ""}
+                        onChange={(e) => handleResultChange(testId, "notes", e.target.value)}
+                        placeholder="Observações sobre o teste"
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {selectedTests.length > 0 && (
-        <div className="space-y-4">
-          <Label>Resultados dos testes selecionados</Label>
-          <div className="space-y-6">
-            {selectedTests.map((testId) => {
-              const test = availableTests.find((t) => t.id === testId)
-              if (!test) return null
-
-              return (
-                <div key={testId} className="border rounded-md p-4 space-y-3">
-                  <h3 className="font-medium">{test.name}</h3>
-
-                  <div className="space-y-2">
-                    <Label htmlFor={`result-${testId}`}>Resultado</Label>
-                    <Input
-                      id={`result-${testId}`}
-                      value={testResults[testId]?.result || ""}
-                      onChange={(e) => handleResultChange(testId, "result", e.target.value)}
-                      placeholder="Digite o resultado do teste"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor={`notes-${testId}`}>Observações</Label>
-                    <Textarea
-                      id={`notes-${testId}`}
-                      value={testResults[testId]?.notes || ""}
-                      onChange={(e) => handleResultChange(testId, "notes", e.target.value)}
-                      placeholder="Observações sobre o teste"
-                      rows={2}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="flex justify-end gap-2">
+      {/* Botões fixos na parte inferior */}
+      <div className="flex justify-end gap-2 pt-6 border-t mt-4">
         <Button type="button" variant="outline" onClick={onComplete}>
           Cancelar
         </Button>
