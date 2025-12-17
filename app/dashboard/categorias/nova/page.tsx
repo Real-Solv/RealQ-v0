@@ -8,8 +8,15 @@ import Link from "next/link"
 import { ArrowLeft, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { createCategory } from "@/lib/services/category-service-extended"
@@ -17,17 +24,20 @@ import { createCategory } from "@/lib/services/category-service-extended"
 export default function NewCategoryPage() {
   const router = useRouter()
   const { toast } = useToast()
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [name, setName] = useState("")
-  const [quantity, setQuantity] = useState("")
+  const [description, setDescription] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
-      // Salvar no Supabase com quantidade
-      await createCategory(name, Number(quantity))
+      await createCategory({
+        name,
+        description,
+      })
 
       toast({
         title: "Categoria criada",
@@ -40,7 +50,9 @@ export default function NewCategoryPage() {
       toast({
         title: "Erro ao criar categoria",
         description:
-          error instanceof Error ? error.message : "Ocorreu um erro ao criar a categoria.",
+          error instanceof Error
+            ? error.message
+            : "Ocorreu um erro ao criar a categoria.",
         variant: "destructive",
       })
     } finally {
@@ -63,8 +75,11 @@ export default function NewCategoryPage() {
       <Card>
         <CardHeader>
           <CardTitle>Informações da Categoria</CardTitle>
-          <CardDescription>Preencha os dados para cadastrar uma nova categoria</CardDescription>
+          <CardDescription>
+            Preencha os dados para cadastrar uma nova categoria
+          </CardDescription>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
@@ -81,17 +96,14 @@ export default function NewCategoryPage() {
                 />
               </div>
 
-              {/* Quantidade */}
+              {/* Descrição */}
               <div className="grid gap-2">
-                <Label htmlFor="quantity">Quantidade</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  placeholder="Digite a quantidade inicial"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  required
-                  min={0}
+                <Label htmlFor="description">Descrição</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Descrição da categoria (opcional)"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
 
@@ -100,7 +112,7 @@ export default function NewCategoryPage() {
             <div className="flex gap-4">
               <Button
                 type="submit"
-                disabled={isSubmitting || !name.trim() || !quantity.trim()}
+                disabled={isSubmitting || !name.trim()}
               >
                 {isSubmitting ? (
                   <>

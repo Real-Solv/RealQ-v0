@@ -11,6 +11,12 @@ interface CategoryWithJoinedProducts extends Category {
   products?: { id: string }[] | null
 }
 
+
+type CreateCategoryInput = {
+  name: string
+  description?: string
+}
+
 // --------------------------------------------------
 // Buscar todas as categorias
 // --------------------------------------------------
@@ -40,6 +46,7 @@ export async function getCategoryById(id: string) {
     .maybeSingle()
 }
 
+
 export async function updateCategory(
   id: string,
   data: Category
@@ -54,18 +61,17 @@ export async function updateCategory(
 // Criar categoria (mantido — .single() é correto aqui)
 // --------------------------------------------------
 export async function createCategory(
-  name: string,
-  quantity: number
+  input: CreateCategoryInput
 ): Promise<Category> {
   try {
     const { data, error } = await supabaseClient
       .from("categories")
       .insert({
-        name,
-        produto_quantidade: quantity,
+        name: input.name,
+        description: input.description ?? null,
       })
       .select("*")
-      .single() // 👈 Aqui precisa do single()
+      .single()
 
     if (error) throw error
     return data
