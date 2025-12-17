@@ -1,4 +1,6 @@
 "use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Eye, MoreHorizontal } from "lucide-react"
 
@@ -13,84 +15,62 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
+import { getAllInspections, type InspectionListItem } from "@/lib/services/inspection-service-extended"
+
 interface InspectionListProps {
   searchTerm: string
 }
 
-export function InspectionList({ searchTerm }: InspectionListProps) {
-  // Mock data - in a real app, this would come from an API
-  const mockInspections = [
-    {
-      id: "1",
-      product: "Farinha de Trigo",
-      batch: "FT-2023-05-001",
-      supplier: "Moinho Paulista",
-      arrivalDate: "25/05/2023",
-      expiryDate: "25/05/2024",
-      status: "Aprovado",
-    },
-    {
-      id: "2",
-      product: "Açúcar Refinado",
-      batch: "AR-2023-05-002",
-      supplier: "Usina Santa Clara",
-      arrivalDate: "26/05/2023",
-      expiryDate: "26/11/2023",
-      status: "Pendente",
-    },
-    {
-      id: "3",
-      product: "Leite em Pó",
-      batch: "LP-2023-05-003",
-      supplier: "Laticínios do Vale",
-      arrivalDate: "27/05/2023",
-      expiryDate: "27/05/2024",
-      status: "Pendente",
-    },
-    {
-      id: "4",
-      product: "Óleo de Soja",
-      batch: "OS-2023-05-004",
-      supplier: "Grãos do Sul",
-      arrivalDate: "20/05/2023",
-      expiryDate: "20/05/2024",
-      status: "Incompleto",
-    },
-    {
-      id: "5",
-      product: "Fermento Biológico",
-      batch: "FB-2023-05-005",
-      supplier: "BioFermentos",
-      arrivalDate: "22/05/2023",
-      expiryDate: "22/08/2023",
-      status: "Incompleto",
-    },
-    {
-      id: "6",
-      product: "Chocolate em Pó",
-      batch: "CP-2022-11-006",
-      supplier: "Cacau Brasil",
-      arrivalDate: "15/11/2022",
-      expiryDate: "15/05/2023",
-      status: "Vencido",
-    },
-    {
-      id: "7",
-      product: "Leite Condensado",
-      batch: "LC-2022-10-007",
-      supplier: "Laticínios do Vale",
-      arrivalDate: "10/10/2022",
-      expiryDate: "10/04/2023",
-      status: "Vencido",
-    },
-  ]
+const getStatusColor = (status: string) => {
+  const statusLower = status.toLowerCase()
+  
+  if (statusLower === "pendente") {
+    return "bg-yellow-100 text-yellow-800"
+  } else if (statusLower === "incompleto") {
+    return "bg-orange-100 text-orange-800"
+  } else if (statusLower === "vencido") {
+    return "bg-red-100 text-red-800"
+  } else if (statusLower === "aprovado") {
+    return "bg-green-100 text-green-800"
+  }
+  
+  return "bg-muted"
+}
 
-  const inspections = mockInspections.filter(
+export function InspectionList({ searchTerm }: InspectionListProps) {
+  const [inspections, setInspections] = useState<InspectionListItem[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadInspections() {
+      try {
+        const data = await getAllInspections()
+        console.log(data)
+        setInspections(data)
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadInspections()
+  }, [])
+
+  const filteredInspections = inspections.filter(
     (inspection) =>
-      inspection.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inspection.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inspection.batch.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inspection.supplier.toLowerCase().includes(searchTerm.toLowerCase()),
+      inspection.supplier.nome.toLowerCase().includes(searchTerm.toLowerCase()),
   )
+
+  if (loading) {
+    return (
+      <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
+        Carregando inspeções...
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-md border">
@@ -107,26 +87,20 @@ export function InspectionList({ searchTerm }: InspectionListProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {inspections.length > 0 ? (
-            inspections.map((inspection) => (
+          {filteredInspections.length > 0 ? (
+            filteredInspections.map((inspection) => (
               <TableRow key={inspection.id}>
-                <TableCell className="font-medium">{inspection.product}</TableCell>
+                <TableCell className="font-medium">{inspection.product.name}</TableCell>
                 <TableCell>{inspection.batch}</TableCell>
-                <TableCell>{inspection.supplier}</TableCell>
-                <TableCell>{inspection.arrivalDate}</TableCell>
-                <TableCell>{inspection.expiryDate}</TableCell>
+                <TableCell>{inspection.supplier.nome}</TableCell>
                 <TableCell>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      inspection.status === "Aprovado"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                        : inspection.status === "Pendente"
-                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                          : inspection.status === "Incompleto"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-                            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-                    }`}
-                  >
+                  {new Date(inspection.arrivalDate).toLocaleDateString("pt-BR")}
+                </TableCell>
+                <TableCell>
+                  {new Date(inspection.expiryDate).toLocaleDateString("pt-BR")}
+                </TableCell>
+                <TableCell>
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusColor(inspection.status)}`}>
                     {inspection.status}
                   </span>
                 </TableCell>

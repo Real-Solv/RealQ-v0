@@ -100,6 +100,55 @@ export async function addTestsToInspection(
   return { success: true }
 }
 
+export interface InspectionListItem {
+  id: string
+  batch: string
+  arrivalDate: string
+  expiryDate: string
+  status: string
+  product: {
+    name: string
+  }
+  supplier: {
+    nome: string
+  }
+}
+
+export async function getAllInspections(): Promise<InspectionListItem[]> {
+  const { data, error } = await supabaseClient
+    .from("inspections")
+    .select(`
+      id,
+      batch,
+      created_at,
+      expiry_date,
+      status,
+      product:products(name),
+      supplier:revendedores(nome)
+    `)
+    .order("created_at", { ascending: false })
+
+
+
+  if (error) {
+    console.log(error)
+    throw new Error(`Erro ao buscar inspeções: ${error.message}`)
+  }
+
+  return (
+    data?.map((inspection) => ({
+      id: inspection.id,
+      batch: inspection.batch,
+      arrivalDate: inspection.created_at,
+      expiryDate: inspection.expiry_date,
+      status: inspection.status,
+      product: inspection.product,
+      supplier: inspection.supplier,
+    })) || []
+  )
+}
+
+
 /**
  * ✅ Registra uma não conformidade e, opcionalmente, cria um plano de ação vinculado.
  */
@@ -274,3 +323,5 @@ export async function createCategory(name: string): Promise<CategoryRow> {
   if (error) throw new Error(`Erro ao criar categoria: ${error.message}`)
   return data
 }
+
+
