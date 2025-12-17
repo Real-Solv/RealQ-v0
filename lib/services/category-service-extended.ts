@@ -32,20 +32,22 @@ export async function getAllCategories(): Promise<Category[]> {
 // --------------------------------------------------
 // Buscar categoria por ID — CORRIGIDO (maybeSingle)
 // --------------------------------------------------
-export async function getCategoryById(id: string): Promise<Category | null> {
-  try {
-    const { data, error } = await supabaseClient
-      .from("categories")
-      .select("*")
-      .eq("id", id)
-      .maybeSingle()   // 👈 evita erro 404 interno
+export async function getCategoryById(id: string) {
+  return supabaseClient
+    .from("categories")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle()
+}
 
-    if (error) throw error
-    return data ?? null
-  } catch (error) {
-    console.error(`Erro ao buscar categoria com ID ${id}:`, error)
-    return null // 👈 evita quebrar a página
-  }
+export async function updateCategory(
+  id: string,
+  data: Category
+) {
+  return supabaseClient
+    .from("categories")
+    .update(data)
+    .eq("id", id)
 }
 
 // --------------------------------------------------
