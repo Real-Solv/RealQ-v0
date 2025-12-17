@@ -1,9 +1,10 @@
 "use client"
-
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AddTestsForm } from "../forms/add-tests-form"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Eye, MoreHorizontal } from "lucide-react"
-
+import { CompleteInspectionForm } from "../forms/complete-inspection-form"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -38,8 +39,20 @@ const getStatusColor = (status: string) => {
 }
 
 export function InspectionList({ searchTerm }: InspectionListProps) {
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false)
+  const handleCompleteInspection = (inspection: InspectionListItem) => {
+    setSelectedInspection(inspection)
+    setCompleteDialogOpen(true)
+  }
   const [inspections, setInspections] = useState<InspectionListItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedInspection, setSelectedInspection] = useState<InspectionListItem | null>(null)
+  const [testsDialogOpen, setTestsDialogOpen] = useState(false)
+
+  const handleAddTests = (inspection: InspectionListItem) => {
+    setSelectedInspection(inspection)
+    setTestsDialogOpen(true)
+  }
 
   useEffect(() => {
     async function loadInspections() {
@@ -122,8 +135,12 @@ export function InspectionList({ searchTerm }: InspectionListProps) {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem>Editar</DropdownMenuItem>
-                      <DropdownMenuItem>Completar inspeção</DropdownMenuItem>
-                      <DropdownMenuItem>Adicionar testes</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleCompleteInspection(inspection)}>
+                        Completar inspeção
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleAddTests(inspection)}>
+                        Adicionar testes
+                      </DropdownMenuItem>
                       <DropdownMenuItem>Registrar não conformidade</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -139,6 +156,44 @@ export function InspectionList({ searchTerm }: InspectionListProps) {
           )}
         </TableBody>
       </Table>
+      <Dialog open={testsDialogOpen} onOpenChange={setTestsDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Adicionar Testes</DialogTitle>
+            <DialogDescription>
+              Adicione testes para a inspeção do produto{" "}
+              {selectedInspection?.product?.name} (Lote: {selectedInspection?.batch})
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedInspection && (
+            <AddTestsForm
+              inspection={selectedInspection}
+              onComplete={() => setTestsDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>Completar Inspeção</DialogTitle>
+          <DialogDescription>
+            Complete os dados da inspeção para o produto{" "}
+            {selectedInspection?.product?.name} (Lote: {selectedInspection?.batch})
+          </DialogDescription>
+        </DialogHeader>
+
+        {selectedInspection && (
+          <CompleteInspectionForm
+            inspection={selectedInspection}
+            onComplete={() => setCompleteDialogOpen(false)}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
     </div>
+    
+    
   )
 }
