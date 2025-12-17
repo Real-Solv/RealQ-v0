@@ -1,6 +1,23 @@
 // app/dashboard/testes/[id]/editar/page.tsx
 "use client"
 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command"
+
+import { Badge } from "@/components/ui/badge"
+import { Check, ChevronsUpDown, X } from "lucide-react"
+
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { Input } from "@/components/ui/input"
@@ -20,6 +37,10 @@ export default function EditTestPage() {
   const { toast } = useToast()
   const [products, setProducts] = useState<Product[]>([])
   const [selectedProducts, setSelectedProducts] = useState<string[]>([])
+
+  const selectedProductObjects = products.filter((product) =>
+    selectedProducts.includes(product.id)
+  )
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -123,32 +144,80 @@ const toggleProduct = (productId: string) => {
         className="mb-6"
       />
 
-      <div className="space-y-2">
-  <label className="font-medium">Produtos relacionados</label>
+      <div className="space-y-3 mb-6">
+        <label className="font-medium">Produtos relacionados</label>
 
-  <div className="max-h-60 overflow-y-auto border rounded p-3 space-y-2">
-    {products.map((product) => (
-      <label key={product.id} className="flex gap-2 items-center">
-        <input
-          type="checkbox"
-          checked={selectedProducts.includes(product.id)}
-          onChange={() => toggleProduct(product.id)}
-        />
-        <span>
-          {product.name}{" "}
-          <span className="text-muted-foreground">
-            ({product.category.name})
-          </span>
-        </span>
-      </label>
-    ))}
-  </div>
-</div>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              className="w-full justify-between"
+            >
+              {selectedProducts.length > 0
+                ? `${selectedProducts.length} produto(s) selecionado(s)`
+                : "Selecione os produtos"}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+
+          <PopoverContent className="w-full p-0">
+            <Command>
+              <CommandInput placeholder="Buscar produto..." />
+              <CommandEmpty>Nenhum produto encontrado.</CommandEmpty>
+
+              <CommandGroup className="max-h-64 overflow-y-auto">
+                {products.map((product) => (
+                  <CommandItem
+                    key={product.id}
+                    onSelect={() => toggleProduct(product.id)}
+                    className="flex items-center gap-2"
+                  >
+                    <Check
+                      className={`h-4 w-4 ${
+                        selectedProducts.includes(product.id)
+                          ? "opacity-100"
+                          : "opacity-0"
+                      }`}
+                    />
+
+                    <span>
+                      {product.name}
+                      <span className="text-muted-foreground text-xs">
+                        {" "}({product.category.name})
+                      </span>
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        {/* Produtos selecionados */}
+        {selectedProductObjects.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {selectedProductObjects.map((product) => (
+              <Badge key={product.id} variant="secondary" className="gap-1">
+                {product.name}
+                <button
+                  type="button"
+                  onClick={() => toggleProduct(product.id)}
+                  className="ml-1 rounded-full hover:bg-muted"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
 
       
 
       {/* Botões */}
-      <div className="flex gap-3">
+      <div className="flex gap-4">
         <Button onClick={handleUpdate} disabled={saving}>
           {saving ? "Salvando..." : "Salvar Alterações"}
         </Button>

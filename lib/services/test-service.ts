@@ -6,6 +6,21 @@
   // 🔹 Tipo derivado automaticamente do schema
   export type Test = Database["public"]["Tables"]["tests"]["Row"]
 
+export type TestProductWithCategory = {
+  id: string
+  name: string
+  description: string | null
+  categoryName: string | null
+}
+
+export type TestWithProducts = {
+  id: string
+  name: string
+  description: string | null
+  created_at: string
+  products: TestProductWithCategory[]
+}
+
   // ========================================================
   // 🔹 Buscar todos os testes
   // ========================================================
@@ -26,25 +41,58 @@
   // ========================================================
   // 🔹 Buscar teste por ID
   // ========================================================
-  export async function getTestById(id: string): Promise<Test | null> {
-    const { data, error } = await supabase
-      .from("tests")
-      .select("*")
-      .eq("id", id)
-      .single()
+export async function getTestById(
+  id: string,
+): Promise<TestWithProducts | null> {
+  const { data, error } = await supabase
+    .from("tests")
+    .select(`
+      id,
+      name,
+      description,
+      created_at,
+      test_products (
+        products (
+          id,
+          name,
+          description,
+          categories (
+            name
+          )
+        )
+      )
+    `)
+    .eq("id", id)
+    .single()
 
-    if (error) {
-      if (error.code === "PGRST116") {
-        // Registro não encontrado
-        return null
-      }
-      console.error(`Erro ao buscar teste com ID ${id}:`, error)
-      throw error
-    }
-
-
-    return data
+  if (error) {
+    console.error("Erro ao buscar teste:", error)
+    throw error
   }
+
+  if (!data) return null
+
+  return {
+    id: data.id,
+    name: data.name,
+    description: data.description,
+    created_at: data.created_at,
+    products:
+      data.test_products
+        ?.map((tp: any) => {
+          const product = tp.products
+          if (!product) return null
+
+          return {
+            id: product.id,
+            name: product.name,
+            description: product.description,
+            categoryName: product.categories?.name ?? null,
+          }
+        })
+        .filter(Boolean) ?? [],
+  }
+}
 
 
   export async function createTestWithProducts(data: {

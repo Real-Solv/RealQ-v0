@@ -1,13 +1,40 @@
 import { supabaseClient } from "@/lib/supabase/client"
 
-// Tipo para o fabricante (produtor)
 export interface Manufacturer {
   id: string
   name: string
   contact: string
   email: string
   phone: string
+  address: string | null
   created_at: string
+}
+
+export async function updateManufacturer(
+  id: string,
+  data: {
+    nome: string
+    email?: string | null
+    telefone?: string | null
+    contact?: string | null
+    address?: string | null
+  },
+): Promise<void> {
+  const { error } = await supabaseClient
+    .from("manufacturers")
+    .update({
+      name: data.nome,
+      email: data.email,
+      phone: data.telefone,
+      contact: data.contact,
+      address: data.address,
+    })
+    .eq("id", id)
+
+  if (error) {
+    console.error("Erro ao atualizar produtor:", error.message)
+    throw error
+  }
 }
 
 // Função para obter todos os fabricantes
@@ -51,7 +78,9 @@ export async function createManufacturer(data: {
   contact?: string
   email?: string
   phone?: string
+  address?: string
 }): Promise<Manufacturer> {
+  console.log(data)
   try {
     const { data: manufacturer, error } = await supabaseClient
       .from("manufacturers")
@@ -60,6 +89,7 @@ export async function createManufacturer(data: {
         contact: data.contact || "",
         email: data.email || "",
         phone: data.phone || "",
+        address: data.address || null,
       })
       .select()
       .single()
@@ -75,39 +105,7 @@ export async function createManufacturer(data: {
   }
 }
 
-// Função para atualizar um fabricante
-export async function updateManufacturer(
-  id: string,
-  data: {
-    name?: string
-    contact?: string
-    email?: string
-    phone?: string
-  },
-): Promise<Manufacturer> {
-  try {
-    const { data: manufacturer, error } = await supabaseClient
-      .from("manufacturers")
-      .update({
-        name: data.name,
-        contact: data.contact,
-        email: data.email,
-        phone: data.phone,
-      })
-      .eq("id", id)
-      .select()
-      .single()
 
-    if (error) {
-      throw error
-    }
-
-    return manufacturer
-  } catch (error) {
-    console.error(`Erro ao atualizar fabricante com ID ${id}:`, error)
-    throw error
-  }
-}
 
 // Função para excluir um fabricante
 export async function deleteManufacturer(id: string): Promise<void> {
