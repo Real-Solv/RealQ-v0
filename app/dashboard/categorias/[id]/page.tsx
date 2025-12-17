@@ -159,12 +159,18 @@ export default function CategoryDetailsPage() {
           <p className="text-lg">{category.name}</p>
         </div>
 
+        {/* Descrição */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-600">Descrição</h3>
+          <p className="text-lg">{category.description}</p>
+        </div>
+
         {/* Quantidade de produtos (trigger) */}
         <div className="flex items-center gap-3 bg-gray-50 p-4 rounded-lg">
           <Package className="text-blue-600" />
           <div>
             <h3 className="text-sm font-semibold text-gray-600">
-              Quantidade total de produtos
+              Quantidade de produtos associados
             </h3>
             <p className="text-2xl font-bold">
               {category.product_count  ?? 0}
