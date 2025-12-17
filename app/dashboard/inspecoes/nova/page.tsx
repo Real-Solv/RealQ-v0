@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ArrowLeft, Camera, X } from "lucide-react"
@@ -16,11 +16,41 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 
+import { createInspection } from "@/lib/services/inspection-service-extended"
+import { productService } from "@/lib/services/product-service" // Ajuste o caminho conforme necessário
+import { getAllManufacturers } from "@/lib/services/manufacturer-service-extended" // Ajuste o caminho conforme necessário
+import { supabaseClient } from "@/lib/supabase/client" // Ajuste o caminho conforme necessário
+
+// Tipos
+interface Product {
+  id: string
+  name: string
+  category: { name: string }
+}
+
+interface Manufacturer {
+  id: string
+  name: string
+}
+
+interface Supplier {
+  id: string
+  nome: string
+  // Adicione outros campos conforme necessário
+}
+
 export default function NewInspectionPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("basic")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  
+  // Estados para os dados
+  const [products, setProducts] = useState<Product[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([])
+  
   const [formData, setFormData] = useState({
     productId: "",
     batch: "",
@@ -34,27 +64,87 @@ export default function NewInspectionPage() {
     photos: [] as string[],
   })
 
-  // Mock data - in a real app, this would come from an API
-  const products = [
-    { id: "1", name: "Farinha de Trigo" },
-    { id: "2", name: "Açúcar Refinado" },
-    { id: "3", name: "Leite em Pó" },
-    { id: "4", name: "Óleo de Soja" },
-  ]
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        // Buscar produtos
+        const productsData = await productService.getAllWithCategory()
+        setProducts(productsData)
 
-  const suppliers = [
-    { id: "1", name: "Moinho Paulista" },
-    { id: "2", name: "Usina Santa Clara" },
-    { id: "3", name: "Laticínios do Vale" },
-    { id: "4", name: "Grãos do Sul" },
-  ]
+        // Buscar fabricantes
+        const manufacturersData = await getAllManufacturers()
+        setManufacturers(manufacturersData)
 
-  const manufacturers = [
-    { id: "1", name: "Moinho Nacional" },
-    { id: "2", name: "Açúcar Brasil" },
-    { id: "3", name: "Laticínios Unidos" },
-    { id: "4", name: "Óleos e Grãos SA" },
-  ]
+        // Buscar fornecedores (revendedores)
+        const { data: suppliersData, error: error } = await supabaseClient
+          .from("revendedores")
+          .select("*")
+          .order("nome")
+        
+        console.log(suppliersData)
+
+        if (error) {
+          console.error("Erro ao carregar revendedores:", error)
+          toast({
+            title: "Erro ao carregar revendedores",
+            description: "Não foi possível carregar a lista de revendedores.",
+            variant: "destructive",
+          })
+        } else {
+          setSuppliers(suppliersData || [])
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error)
+        toast({
+          title: "Erro ao carregar dados",
+          description: "Não foi possível carregar os dados necessários.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [toast])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      await createInspection({
+        product_id: formData.productId,
+        batch: formData.batch,
+        revendedor_id: formData.supplierId,
+        manufacturer_id: formData.manufacturerId,
+        expiry_date: formData.expiryDate,
+        notes: formData.notes,
+        color: formData.color,
+        odor: formData.odor,
+        appearance: formData.appearance,
+      })
+
+      toast({
+        title: "Inspeção criada",
+        description: "A inspeção foi criada com sucesso.",
+      })
+
+      router.push("/dashboard/inspecoes")
+    } catch (error) {
+      console.log(error)
+      console.error(error)
+      toast({
+        title: "Erro ao criar inspeção",
+        description: "Não foi possível criar a inspeção.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -66,8 +156,6 @@ export default function NewInspectionPage() {
   }
 
   const handleAddPhoto = () => {
-    // In a real app, this would open a file picker or camera
-    // For this example, we'll just add a placeholder
     const newPhoto = `/placeholder.svg?height=200&width=200&text=Photo ${formData.photos.length + 1}`
     setFormData((prev) => ({
       ...prev,
@@ -82,35 +170,6 @@ export default function NewInspectionPage() {
     }))
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    try {
-      // In a real app, this would call an API to create the inspection
-      console.log("Form submitted:", formData)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      toast({
-        title: "Inspeção criada",
-        description: "A inspeção foi criada com sucesso.",
-      })
-
-      // Redirect to inspections list
-      router.push("/dashboard/inspecoes")
-    } catch (error) {
-      toast({
-        title: "Erro ao criar inspeção",
-        description: "Ocorreu um erro ao criar a inspeção. Tente novamente.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
   const handleTabChange = (value: string) => {
     setActiveTab(value)
   }
@@ -118,6 +177,14 @@ export default function NewInspectionPage() {
   const canProceedToQuality =
     formData.productId && formData.batch && formData.supplierId && formData.manufacturerId && formData.expiryDate
   const canSubmit = canProceedToQuality && formData.color && formData.odor && formData.appearance
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Carregando dados...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -195,7 +262,7 @@ export default function NewInspectionPage() {
                       <SelectContent>
                         {suppliers.map((supplier) => (
                           <SelectItem key={supplier.id} value={supplier.id}>
-                            {supplier.name}
+                            {supplier.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>

@@ -46,6 +46,8 @@ export async function getAllManufacturers(): Promise<Manufacturer[]> {
       throw error
     }
 
+    console.log(data)
+
     return data || []
   } catch (error) {
     console.error("Erro ao buscar fabricantes:", error)

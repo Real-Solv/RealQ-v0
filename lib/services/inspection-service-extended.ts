@@ -161,6 +161,47 @@ export async function registerNonConformity(
   return { success: true }
 }
 
+type CreateInspectionDTO = {
+  product_id: string
+  batch: string
+  revendedor_id: string
+  manufacturer_id: string
+  expiry_date: string
+  notes?: string
+  color: string
+  odor: string
+  appearance: string
+}
+
+export async function createInspection(data: CreateInspectionDTO) {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabaseClient.auth.getUser()
+
+  if (userError || !user) {
+    throw new Error("Usuário não autenticado")
+  }
+
+  const { error } = await supabaseClient
+    .from("inspections")
+    .insert({
+      product_id: data.product_id,
+      batch: data.batch,
+      revendedor_id: data.revendedor_id,
+      manufacturer_id: data.manufacturer_id,
+      expiry_date: data.expiry_date,
+      color: data.color,
+      odor: data.odor,
+      appearance: data.appearance,
+      created_by: user.id,
+    })
+
+  if (error) {
+    throw error
+  }
+}
+
 // ---------------------- PRODUCTS ----------------------
 
 /**
