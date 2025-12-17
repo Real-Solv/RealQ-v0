@@ -58,14 +58,28 @@ export async function completeInspection(
 /**
  * ✅ Busca todos os testes disponíveis.
  */
-export async function getAvailableTests(): Promise<TestRow[]> {
+export async function getAvailableTests(productId: string): Promise<TestRow[]> {
   const { data, error } = await supabaseClient
-    .from("tests")
-    .select("*")
-    .order("name", { ascending: true })
+    .from("test_products")
+    .select(`
+      test:tests (
+        id,
+        name,
+        description,
+        created_at
+      )
+    `)
+    .eq("product_id", productId)
+    .order("name", { foreignTable: "tests", ascending: true })
 
-  if (error) throw new Error(`Erro ao buscar testes: ${error.message}`)
-  return data ?? []
+  if (error) {
+    throw new Error(`Erro ao buscar testes: ${error.message}`)
+  }
+
+  // Achata o resultado para retornar apenas os testes
+  return (
+    data?.map((row) => row.test).filter(Boolean) ?? []
+  )
 }
 
 /**
@@ -107,7 +121,8 @@ export interface InspectionListItem {
   expiryDate: string
   status: string
   product: {
-    name: string
+    name: string,
+    id: string
   }
   supplier: {
     nome: string
@@ -123,7 +138,7 @@ export async function getAllInspections(): Promise<InspectionListItem[]> {
       created_at,
       expiry_date,
       status,
-      product:products(name),
+      product:products(name, id),
       supplier:revendedores(nome)
     `)
     .order("created_at", { ascending: false })

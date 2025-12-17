@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Checkbox } from "@/components/ui/checkbox"
 import { addTestsToInspection, getAvailableTests } from "@/lib/services/inspection-service-extended"
 import { Skeleton } from "@/components/ui/skeleton"
+import { inspect } from "util"
 
 interface AddTestsFormProps {
   inspection: any
@@ -31,7 +32,7 @@ export function AddTestsForm({ inspection, onComplete }: AddTestsFormProps) {
     const loadTests = async () => {
       try {
         setIsLoading(true)
-        const tests = await getAvailableTests()
+        const tests = await getAvailableTests(inspection.product.id)
         setAvailableTests(tests)
       } catch (error) {
         console.error("Erro ao carregar testes:", error)
