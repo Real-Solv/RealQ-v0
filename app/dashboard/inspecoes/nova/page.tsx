@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Camera, X } from "lucide-react"
+import { ArrowLeft, X, Upload } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,9 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 
 import { createInspection } from "@/lib/services/inspection-service-extended"
-import { productService } from "@/lib/services/product-service" // Ajuste o caminho conforme necessário
-import { getAllManufacturers } from "@/lib/services/manufacturer-service-extended" // Ajuste o caminho conforme necessário
-import { supabaseClient } from "@/lib/supabase/client" // Ajuste o caminho conforme necessário
+import { productService } from "@/lib/services/product-service"
+import { getAllManufacturers } from "@/lib/services/manufacturer-service-extended"
+import { supabaseClient } from "@/lib/supabase/client"
 
 // Tipos
 interface Product {
@@ -36,7 +36,39 @@ interface Manufacturer {
 interface Supplier {
   id: string
   nome: string
-  // Adicione outros campos conforme necessário
+}
+
+// Função para formatar data no formato brasileiro
+function formatDateToBR(date: string): string {
+  if (!date) return ""
+  const [year, month, day] = date.split("-")
+  return `${day}/${month}/${year}`
+}
+
+// Função para converter data BR para ISO
+function formatDateToISO(date: string): string {
+  if (!date) return ""
+  const cleaned = date.replace(/\D/g, "")
+  if (cleaned.length !== 8) return ""
+  const day = cleaned.substring(0, 2)
+  const month = cleaned.substring(2, 4)
+  const year = cleaned.substring(4, 8)
+  return `${year}-${month}-${day}`
+}
+
+// Máscara de data
+function applyDateMask(value: string): string {
+  const cleaned = value.replace(/\D/g, "")
+  let masked = cleaned
+  
+  if (cleaned.length >= 2) {
+    masked = `${cleaned.substring(0, 2)}/${cleaned.substring(2)}`
+  }
+  if (cleaned.length >= 4) {
+    masked = `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}/${cleaned.substring(4, 8)}`
+  }
+  
+  return masked.substring(0, 10) // DD/MM/YYYY
 }
 
 export default function NewInspectionPage() {
@@ -57,12 +89,16 @@ export default function NewInspectionPage() {
     supplierId: "",
     manufacturerId: "",
     expiryDate: "",
+    expiryDateDisplay: "",
     notes: "",
     color: "",
     odor: "",
     appearance: "",
-    photos: [] as string[],
+    photoFiles: [] as File[],
+    photoPreview: [] as string[],
   })
+
+  
 
   // Carregar dados ao montar o componente
   useEffect(() => {
@@ -78,12 +114,10 @@ export default function NewInspectionPage() {
         setManufacturers(manufacturersData)
 
         // Buscar fornecedores (revendedores)
-        const { data: suppliersData, error: error } = await supabaseClient
+        const { data: suppliersData, error } = await supabaseClient
           .from("revendedores")
           .select("*")
           .order("nome")
-        
-        console.log(suppliersData)
 
         if (error) {
           console.error("Erro ao carregar revendedores:", error)
@@ -125,16 +159,16 @@ export default function NewInspectionPage() {
         color: formData.color,
         odor: formData.odor,
         appearance: formData.appearance,
+        photos: formData.photoFiles,
       })
 
       toast({
         title: "Inspeção criada",
-        description: "A inspeção foi criada com sucesso.",
+        description: "A inspeção foi criada com sucesso e os testes foram vinculados automaticamente.",
       })
 
       router.push("/dashboard/inspecoes")
     } catch (error) {
-      console.log(error)
       console.error(error)
       toast({
         title: "Erro ao criar inspeção",
@@ -151,22 +185,53 @@ export default function NewInspectionPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const masked = applyDateMask(value)
+    const isoDate = formatDateToISO(masked)
+    
+    setFormData((prev) => ({
+      ...prev,
+      expiryDateDisplay: masked,
+      expiryDate: isoDate,
+    }))
+  }
+
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleAddPhoto = () => {
-    const newPhoto = `/placeholder.svg?height=200&width=200&text=Photo ${formData.photos.length + 1}`
-    setFormData((prev) => ({
-      ...prev,
-      photos: [...prev.photos, newPhoto],
-    }))
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    const newFiles: File[] = []
+    const newPreviews: string[] = []
+
+    Array.from(files).forEach((file) => {
+      if (file.type.startsWith("image/")) {
+        newFiles.push(file)
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          newPreviews.push(reader.result as string)
+          if (newPreviews.length === files.length) {
+            setFormData((prev) => ({
+              ...prev,
+              photoFiles: [...prev.photoFiles, ...newFiles],
+              photoPreview: [...prev.photoPreview, ...newPreviews],
+            }))
+          }
+        }
+        reader.readAsDataURL(file)
+      }
+    })
   }
 
   const handleRemovePhoto = (index: number) => {
     setFormData((prev) => ({
       ...prev,
-      photos: prev.photos.filter((_, i) => i !== index),
+      photoFiles: prev.photoFiles.filter((_, i) => i !== index),
+      photoPreview: prev.photoPreview.filter((_, i) => i !== index),
     }))
   }
 
@@ -295,10 +360,11 @@ export default function NewInspectionPage() {
                     <Label htmlFor="expiryDate">Data de Validade</Label>
                     <Input
                       id="expiryDate"
-                      name="expiryDate"
-                      type="date"
-                      value={formData.expiryDate}
-                      onChange={handleChange}
+                      name="expiryDateDisplay"
+                      placeholder="DD/MM/AAAA"
+                      value={formData.expiryDateDisplay}
+                      onChange={handleDateChange}
+                      maxLength={10}
                       required
                     />
                   </div>
@@ -365,10 +431,10 @@ export default function NewInspectionPage() {
                 <div className="space-y-2">
                   <Label>Fotos</Label>
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                    {formData.photos.map((photo, index) => (
+                    {formData.photoPreview.map((photo, index) => (
                       <div key={index} className="relative rounded-md border">
                         <img
-                          src={photo || "/placeholder.svg"}
+                          src={photo}
                           alt={`Foto ${index + 1}`}
                           className="h-32 w-full rounded-md object-cover"
                         />
@@ -383,15 +449,17 @@ export default function NewInspectionPage() {
                         </Button>
                       </div>
                     ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex h-32 flex-col items-center justify-center rounded-md border border-dashed"
-                      onClick={handleAddPhoto}
-                    >
-                      <Camera className="mb-2 h-6 w-6" />
-                      <span>Adicionar Foto</span>
-                    </Button>
+                    <label className="flex h-32 flex-col items-center justify-center rounded-md border border-dashed cursor-pointer hover:bg-accent">
+                      <Upload className="mb-2 h-6 w-6" />
+                      <span className="text-sm">Adicionar Foto</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handlePhotoUpload}
+                      />
+                    </label>
                   </div>
                 </div>
 
