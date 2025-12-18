@@ -604,6 +604,8 @@ export async function registerNonConformity(
 export async function createActionPlan(
   data: CreateActionPlanData
 ): Promise<{ id: string }> {
+  const userId = await getCurrentUserId()
+  if (!userId) throw new Error("Usuário não autenticado")
   try {
     const { data: apData, error } = await supabaseClient
       .from('action_plans')
@@ -626,11 +628,16 @@ export async function createNonConformityWithActionPlan(
   nonConformityData: CreateNonConformityData,
   actionPlanData: CreateActionPlanData
 ): Promise<{ nonConformityId: string; actionPlanId: string }> {
+  const userId = await getCurrentUserId()
+  if (!userId) throw new Error("Usuário não autenticado")
   try {
     // Criar não conformidade
     const { data: ncData, error: ncError } = await supabaseClient
       .from('non_conformities')
-      .insert(nonConformityData)
+      .insert([{...nonConformityData,
+        created_by: userId,
+
+      }])
       .select('id')
       .single()
 
@@ -650,6 +657,7 @@ export async function createNonConformityWithActionPlan(
       actionPlanId: apData.id,
     }
   } catch (error) {
+    console.log(error)
     console.error('Erro ao criar não conformidade e plano de ação:', error)
     throw error
   }
