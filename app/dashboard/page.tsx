@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   WhiteCard,
   WhiteCardContent,
@@ -10,41 +10,39 @@ import {
 } from "@/components/ui/white-card"
 import { Overview } from "@/components/dashboard/overview"
 import { RecentInspections } from "@/components/dashboard/recent-inspections"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
-import { Database } from "lucide-react"
+import { getDashboardStats, type DashboardStats } from "@/lib/services/dashboard-service"
+import { Skeleton } from "@/components/ui/skeleton"
+import { 
+  ClipboardList, 
+  AlertTriangle, 
+  FileText, 
+  CalendarX 
+} from "lucide-react"
 
 export default function DashboardPage() {
-  const { toast } = useToast()
-  const [isSettingUp, setIsSettingUp] = useState(false)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const handleSetupDatabase = async () => {
-    try {
-      setIsSettingUp(true)
-      const response = await fetch("/api/setup-db", {
-        method: "POST",
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Erro ao configurar banco de dados")
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        setLoading(true)
+        const data = await getDashboardStats()
+        setStats(data)
+      } catch (error) {
+        console.error("Erro ao carregar estatísticas:", error)
+      } finally {
+        setLoading(false)
       }
-
-      toast({
-        title: "Banco de dados configurado",
-        description: "O banco de dados foi configurado com sucesso.",
-      })
-    } catch (error) {
-      console.error("Erro ao configurar banco de dados:", error)
-      toast({
-        title: "Erro ao configurar banco de dados",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao configurar o banco de dados.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSettingUp(false)
     }
+
+    loadStats()
+  }, [])
+
+  const formatDiff = (diff: number) => {
+    if (diff === 0) return "sem alterações"
+    const sign = diff > 0 ? "+" : ""
+    return `${sign}${diff} desde ontem`
   }
 
   return (
@@ -57,91 +55,95 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Inspeções Pendentes */}
         <WhiteCard>
           <WhiteCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <WhiteCardTitle className="text-sm font-medium">Inspeções Pendentes</WhiteCardTitle>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              className="h-4 w-4 text-muted-foreground"
-            >
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
+            <ClipboardList className="h-4 w-4 text-muted-foreground" />
           </WhiteCardHeader>
           <WhiteCardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">+2 desde ontem</p>
+            {loading ? (
+              <>
+                <Skeleton className="h-8 w-16 mb-1" />
+                <Skeleton className="h-4 w-32" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.pendingInspections || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDiff(stats?.pendingInspectionsDiff || 0)}
+                </p>
+              </>
+            )}
           </WhiteCardContent>
         </WhiteCard>
+
+        {/* Não Conformidades */}
         <WhiteCard>
           <WhiteCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <WhiteCardTitle className="text-sm font-medium">Não Conformidades</WhiteCardTitle>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              className="h-4 w-4 text-muted-foreground"
-            >
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </WhiteCardHeader>
           <WhiteCardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">-2 desde ontem</p>
+            {loading ? (
+              <>
+                <Skeleton className="h-8 w-16 mb-1" />
+                <Skeleton className="h-4 w-32" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.nonConformities || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDiff(stats?.nonConformitiesDiff || 0)}
+                </p>
+              </>
+            )}
           </WhiteCardContent>
         </WhiteCard>
+
+        {/* Planos de Ação */}
         <WhiteCard>
           <WhiteCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <WhiteCardTitle className="text-sm font-medium">Planos de Ação</WhiteCardTitle>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              className="h-4 w-4 text-muted-foreground"
-            >
-              <rect width="20" height="14" x="2" y="5" rx="2" />
-              <path d="M2 10h20" />
-            </svg>
+            <FileText className="h-4 w-4 text-muted-foreground" />
           </WhiteCardHeader>
           <WhiteCardContent>
-            <div className="text-2xl font-bold">15</div>
-            <p className="text-xs text-muted-foreground">+3 desde ontem</p>
+            {loading ? (
+              <>
+                <Skeleton className="h-8 w-16 mb-1" />
+                <Skeleton className="h-4 w-32" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.actionPlans || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDiff(stats?.actionPlansDiff || 0)}
+                </p>
+              </>
+            )}
           </WhiteCardContent>
         </WhiteCard>
+
+        {/* Produtos Vencidos */}
         <WhiteCard>
           <WhiteCardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <WhiteCardTitle className="text-sm font-medium">Produtos Vencidos</WhiteCardTitle>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              className="h-4 w-4 text-muted-foreground"
-            >
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-            </svg>
+            <CalendarX className="h-4 w-4 text-muted-foreground" />
           </WhiteCardHeader>
           <WhiteCardContent>
-            <div className="text-2xl font-bold">5</div>
-            <p className="text-xs text-muted-foreground">+1 desde ontem</p>
+            {loading ? (
+              <>
+                <Skeleton className="h-8 w-16 mb-1" />
+                <Skeleton className="h-4 w-32" />
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{stats?.expiredProducts || 0}</div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDiff(stats?.expiredProductsDiff || 0)}
+                </p>
+              </>
+            )}
           </WhiteCardContent>
         </WhiteCard>
       </div>
