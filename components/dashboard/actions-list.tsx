@@ -1,69 +1,97 @@
 "use client"
 import Link from "next/link"
-import { Eye, MoreHorizontal } from "lucide-react"
+import { Eye } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { getActionPlans, updateActionPlan, type ActionPlan } from "@/lib/services/action-plan-service"
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
 
 interface ActionsListProps {
   searchTerm: string
 }
 
 export function ActionsList({ searchTerm }: ActionsListProps) {
-  // Mock data - in a real app, this would come from an API
-  const mockActions = [
-    {
-      id: "1",
-      product: "Farinha de Trigo",
-      batch: "FT-2023-05-001",
-      description: "Ajustar processo de peneiramento para reduzir impurezas",
-      status: "Em andamento",
-      dueDate: "15/06/2023",
-      assignedTo: "João Silva",
-    },
-    {
-      id: "2",
-      product: "Açúcar Refinado",
-      batch: "AR-2023-05-002",
-      description: "Verificar calibração dos equipamentos de medição de umidade",
-      status: "Pendente",
-      dueDate: "20/06/2023",
-      assignedTo: "Maria Costa",
-    },
-    {
-      id: "3",
-      product: "Leite em Pó",
-      batch: "LP-2023-05-003",
-      description: "Revisar procedimento de amostragem para testes microbiológicos",
-      status: "Concluído",
-      dueDate: "10/06/2023",
-      assignedTo: "Pedro Alves",
-    },
-    {
-      id: "4",
-      product: "Óleo de Soja",
-      batch: "OS-2023-05-004",
-      description: "Implementar novo teste de acidez no processo de recebimento",
-      status: "Em andamento",
-      dueDate: "25/06/2023",
-      assignedTo: "Ana Santos",
-    },
-  ]
+  const [actions, setActions] = useState<ActionPlan[]>([])
+  const [loading, setLoading] = useState(true)
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const { toast } = useToast()
 
-  const actions = mockActions.filter(
+  useEffect(() => {
+    loadActions()
+  }, [])
+
+  async function loadActions() {
+    try {
+      setLoading(true)
+      const data = await getActionPlans()
+      setActions(data)
+    } catch (error) {
+      console.error("Erro ao carregar planos de ação:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleStatusChange = async (actionId: string, newStatus: string) => {
+    try {
+      setUpdatingStatus(actionId)
+      
+      const action = actions.find(a => a.id === actionId)
+      if (!action) return
+
+      await updateActionPlan(actionId, {
+        description: action.description,
+        status: newStatus,
+        due_date: action.due_date
+      })
+
+      toast({
+        title: "Status atualizado",
+        description: "O status do plano de ação foi atualizado com sucesso.",
+      })
+
+      await loadActions()
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error)
+      toast({
+        title: "Erro ao atualizar status",
+        description: "Não foi possível atualizar o status do plano de ação.",
+        variant: "destructive",
+      })
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
+  const filteredActions = actions.filter(
     (action) =>
-      action.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      action.batch.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      action.inspections?.product?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      action.inspections?.batch?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       action.description.toLowerCase().includes(searchTerm.toLowerCase()),
   )
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR')
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-md border">
+        <div className="flex items-center justify-center h-24">
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-md border">
@@ -80,49 +108,37 @@ export function ActionsList({ searchTerm }: ActionsListProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {actions.length > 0 ? (
-            actions.map((action) => (
+          {filteredActions.length > 0 ? (
+            filteredActions.map((action) => (
               <TableRow key={action.id}>
-                <TableCell className="font-medium">{action.product}</TableCell>
-                <TableCell>{action.batch}</TableCell>
+                <TableCell className="font-medium">{action.inspections?.products?.name || '-'}</TableCell>
+                <TableCell>{action.inspections?.batch || '-'}</TableCell>
                 <TableCell>{action.description}</TableCell>
                 <TableCell>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      action.status === "Concluído"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                        : action.status === "Em andamento"
-                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                    }`}
+                  <Select
+                    value={action.status}
+                    onValueChange={(value) => handleStatusChange(action.id, value)}
+                    disabled={updatingStatus === action.id}
                   >
-                    {action.status}
-                  </span>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="andamento">andamento</SelectItem>
+                      <SelectItem value="Concluído">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </TableCell>
-                <TableCell>{action.dueDate}</TableCell>
-                <TableCell>{action.assignedTo}</TableCell>
+                <TableCell>{formatDate(action.due_date)}</TableCell>
+                <TableCell>{action.users.name || action.users.email || '-'}</TableCell>
                 <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Abrir menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/dashboard/acoes/${action.id}`}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver detalhes
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>Editar</DropdownMenuItem>
-                      <DropdownMenuItem>Atualizar status</DropdownMenuItem>
-                      <DropdownMenuItem>Concluir</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/dashboard/inspecoes/${action.inspection_id}?tab=actionplans`}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Ver detalhes
+                    </Link>
+                  </Button>
                 </TableCell>
               </TableRow>
             ))

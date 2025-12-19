@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Eye, MoreHorizontal } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -17,10 +17,27 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { CompleteInspectionForm } from "../forms/complete-inspection-form"
 import { AddTestsForm } from "../forms/add-tests-form"
 import { NonConformityForm } from "../forms/non-conformity-form"
+import { getAllInspections, type InspectionListItem } from "@/lib/services/inspection-service-extended"
 
 interface QualityInspectionListProps {
   type: "pending" | "incomplete" | "expired"
   searchTerm: string
+}
+
+const getStatusColor = (status: string) => {
+  const statusLower = status.toLowerCase()
+  
+  if (statusLower === "pendente") {
+    return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+  } else if (statusLower === "incompleto") {
+    return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100"
+  } else if (statusLower === "vencido") {
+    return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+  } else if (statusLower === "aprovado") {
+    return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+  }
+  
+  return "bg-muted"
 }
 
 export function QualityInspectionList({ type, searchTerm }: QualityInspectionListProps) {
@@ -29,85 +46,43 @@ export function QualityInspectionList({ type, searchTerm }: QualityInspectionLis
   const [completeDialogOpen, setCompleteDialogOpen] = useState(false)
   const [testsDialogOpen, setTestsDialogOpen] = useState(false)
   const [nonConformityDialogOpen, setNonConformityDialogOpen] = useState(false)
+  const [inspections, setInspections] = useState<InspectionListItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Mock data - in a real app, this would come from an API
-  const mockInspections = {
-    pending: [
-      {
-        id: "1",
-        product: "Farinha de Trigo",
-        batch: "FT-2023-05-001",
-        supplier: "Moinho Paulista",
-        arrivalDate: "25/05/2023",
-        expiryDate: "25/05/2024",
-        status: "Pendente",
-      },
-      {
-        id: "2",
-        product: "Açúcar Refinado",
-        batch: "AR-2023-05-002",
-        supplier: "Usina Santa Clara",
-        arrivalDate: "26/05/2023",
-        expiryDate: "26/11/2023",
-        status: "Pendente",
-      },
-      {
-        id: "3",
-        product: "Leite em Pó",
-        batch: "LP-2023-05-003",
-        supplier: "Laticínios do Vale",
-        arrivalDate: "27/05/2023",
-        expiryDate: "27/05/2024",
-        status: "Pendente",
-      },
-    ],
-    incomplete: [
-      {
-        id: "4",
-        product: "Óleo de Soja",
-        batch: "OS-2023-05-004",
-        supplier: "Grãos do Sul",
-        arrivalDate: "20/05/2023",
-        expiryDate: "20/05/2024",
-        status: "Incompleto",
-      },
-      {
-        id: "5",
-        product: "Fermento Biológico",
-        batch: "FB-2023-05-005",
-        supplier: "BioFermentos",
-        arrivalDate: "22/05/2023",
-        expiryDate: "22/08/2023",
-        status: "Incompleto",
-      },
-    ],
-    expired: [
-      {
-        id: "6",
-        product: "Chocolate em Pó",
-        batch: "CP-2022-11-006",
-        supplier: "Cacau Brasil",
-        arrivalDate: "15/11/2022",
-        expiryDate: "15/05/2023",
-        status: "Vencido",
-      },
-      {
-        id: "7",
-        product: "Leite Condensado",
-        batch: "LC-2022-10-007",
-        supplier: "Laticínios do Vale",
-        arrivalDate: "10/10/2022",
-        expiryDate: "10/04/2023",
-        status: "Vencido",
-      },
-    ],
-  }
+  useEffect(() => {
+    async function loadInspections() {
+      try {
+        const data = await getAllInspections()
+        setInspections(data)
+      } catch (error) {
+        console.error(error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const inspections = mockInspections[type].filter(
+    loadInspections()
+  }, [])
+
+  // Filtra inspeções por tipo
+  const filteredByType = inspections.filter((inspection) => {
+    const statusLower = inspection.status.toLowerCase()
+    console.log(statusLower)
+    
+    // Mapeia o tipo da prop para o status no banco
+    if (type === "pending") return statusLower === "pendente"
+    if (type === "incomplete") return statusLower === "incompleto"
+    if (type === "expired") return statusLower === "vencido"
+    
+    return false
+  })
+
+  // Filtra por termo de busca
+  const filteredInspections = filteredByType.filter(
     (inspection) =>
-      inspection.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inspection.product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inspection.batch.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inspection.supplier.toLowerCase().includes(searchTerm.toLowerCase()),
+      inspection.supplier.nome.toLowerCase().includes(searchTerm.toLowerCase()),
   )
 
   const handleViewDetails = (inspection: any) => {
@@ -129,6 +104,14 @@ export function QualityInspectionList({ type, searchTerm }: QualityInspectionLis
     setNonConformityDialogOpen(true)
   }
 
+  if (loading) {
+    return (
+      <div className="rounded-md border p-6 text-center text-sm text-muted-foreground">
+        Carregando inspeções...
+      </div>
+    )
+  }
+
   return (
     <>
       <div className="rounded-md border">
@@ -145,24 +128,20 @@ export function QualityInspectionList({ type, searchTerm }: QualityInspectionLis
             </TableRow>
           </TableHeader>
           <TableBody>
-            {inspections.length > 0 ? (
-              inspections.map((inspection) => (
+            {filteredInspections.length > 0 ? (
+              filteredInspections.map((inspection) => (
                 <TableRow key={inspection.id}>
-                  <TableCell className="font-medium">{inspection.product}</TableCell>
+                  <TableCell className="font-medium">{inspection.product.name}</TableCell>
                   <TableCell>{inspection.batch}</TableCell>
-                  <TableCell>{inspection.supplier}</TableCell>
-                  <TableCell>{inspection.arrivalDate}</TableCell>
-                  <TableCell>{inspection.expiryDate}</TableCell>
+                  <TableCell>{inspection.supplier.nome}</TableCell>
                   <TableCell>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                        inspection.status === "Pendente"
-                          ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                          : inspection.status === "Incompleto"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-                            : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-                      }`}
-                    >
+                    {new Date(inspection.arrivalDate).toLocaleDateString("pt-BR")}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(inspection.expiryDate).toLocaleDateString("pt-BR")}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusColor(inspection.status)}`}>
                       {inspection.status}
                     </span>
                   </TableCell>
@@ -210,7 +189,7 @@ export function QualityInspectionList({ type, searchTerm }: QualityInspectionLis
           <DialogHeader>
             <DialogTitle>Completar Inspeção</DialogTitle>
             <DialogDescription>
-              Complete os dados da inspeção para o produto {selectedInspection?.product} (Lote:{" "}
+              Complete os dados da inspeção para o produto {selectedInspection?.product?.name} (Lote:{" "}
               {selectedInspection?.batch})
             </DialogDescription>
           </DialogHeader>
@@ -226,7 +205,7 @@ export function QualityInspectionList({ type, searchTerm }: QualityInspectionLis
           <DialogHeader>
             <DialogTitle>Adicionar Testes</DialogTitle>
             <DialogDescription>
-              Adicione testes para a inspeção do produto {selectedInspection?.product} (Lote:{" "}
+              Adicione testes para a inspeção do produto {selectedInspection?.product?.name} (Lote:{" "}
               {selectedInspection?.batch})
             </DialogDescription>
           </DialogHeader>
@@ -242,7 +221,7 @@ export function QualityInspectionList({ type, searchTerm }: QualityInspectionLis
           <DialogHeader>
             <DialogTitle>Registrar Não Conformidade</DialogTitle>
             <DialogDescription>
-              Registre uma não conformidade para o produto {selectedInspection?.product} (Lote:{" "}
+              Registre uma não conformidade para o produto {selectedInspection?.product?.name} (Lote:{" "}
               {selectedInspection?.batch})
             </DialogDescription>
           </DialogHeader>

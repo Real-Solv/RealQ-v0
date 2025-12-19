@@ -2,10 +2,10 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Camera, X } from "lucide-react"
+import { ArrowLeft, X, Upload } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,99 +16,223 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 
+import { createInspection } from "@/lib/services/inspection-service-extended"
+import { productService } from "@/lib/services/product-service"
+import { getAllManufacturers } from "@/lib/services/manufacturer-service-extended"
+import { supabaseClient } from "@/lib/supabase/client"
+
+// Tipos
+interface Product {
+  id: string
+  name: string
+  category: { name: string }
+}
+
+interface Manufacturer {
+  id: string
+  name: string
+}
+
+interface Supplier {
+  id: string
+  nome: string
+}
+
+// Função para formatar data no formato brasileiro
+function formatDateToBR(date: string): string {
+  if (!date) return ""
+  const [year, month, day] = date.split("-")
+  return `${day}/${month}/${year}`
+}
+
+// Função para converter data BR para ISO
+function formatDateToISO(date: string): string {
+  if (!date) return ""
+  const cleaned = date.replace(/\D/g, "")
+  if (cleaned.length !== 8) return ""
+  const day = cleaned.substring(0, 2)
+  const month = cleaned.substring(2, 4)
+  const year = cleaned.substring(4, 8)
+  return `${year}-${month}-${day}`
+}
+
+// Máscara de data
+function applyDateMask(value: string): string {
+  const cleaned = value.replace(/\D/g, "")
+  let masked = cleaned
+  
+  if (cleaned.length >= 2) {
+    masked = `${cleaned.substring(0, 2)}/${cleaned.substring(2)}`
+  }
+  if (cleaned.length >= 4) {
+    masked = `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}/${cleaned.substring(4, 8)}`
+  }
+  
+  return masked.substring(0, 10) // DD/MM/YYYY
+}
+
 export default function NewInspectionPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("basic")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  
+  // Estados para os dados
+  const [products, setProducts] = useState<Product[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([])
+  
   const [formData, setFormData] = useState({
     productId: "",
     batch: "",
     supplierId: "",
     manufacturerId: "",
     expiryDate: "",
+    expiryDateDisplay: "",
     notes: "",
     color: "",
     odor: "",
     appearance: "",
-    photos: [] as string[],
+    photoFiles: [] as File[],
+    photoPreview: [] as string[],
   })
 
-  // Mock data - in a real app, this would come from an API
-  const products = [
-    { id: "1", name: "Farinha de Trigo" },
-    { id: "2", name: "Açúcar Refinado" },
-    { id: "3", name: "Leite em Pó" },
-    { id: "4", name: "Óleo de Soja" },
-  ]
+  
 
-  const suppliers = [
-    { id: "1", name: "Moinho Paulista" },
-    { id: "2", name: "Usina Santa Clara" },
-    { id: "3", name: "Laticínios do Vale" },
-    { id: "4", name: "Grãos do Sul" },
-  ]
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      try {
+        // Buscar produtos
+        const productsData = await productService.getAllWithCategory()
+        setProducts(productsData)
 
-  const manufacturers = [
-    { id: "1", name: "Moinho Nacional" },
-    { id: "2", name: "Açúcar Brasil" },
-    { id: "3", name: "Laticínios Unidos" },
-    { id: "4", name: "Óleos e Grãos SA" },
-  ]
+        // Buscar fabricantes
+        const manufacturersData = await getAllManufacturers()
+        setManufacturers(manufacturersData)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+        // Buscar fornecedores (revendedores)
+        const { data: suppliersData, error } = await supabaseClient
+          .from("revendedores")
+          .select("*")
+          .order("nome")
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+        if (error) {
+          console.error("Erro ao carregar revendedores:", error)
+          toast({
+            title: "Erro ao carregar revendedores",
+            description: "Não foi possível carregar a lista de revendedores.",
+            variant: "destructive",
+          })
+        } else {
+          setSuppliers(suppliersData || [])
+        }
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error)
+        toast({
+          title: "Erro ao carregar dados",
+          description: "Não foi possível carregar os dados necessários.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
 
-  const handleAddPhoto = () => {
-    // In a real app, this would open a file picker or camera
-    // For this example, we'll just add a placeholder
-    const newPhoto = `/placeholder.svg?height=200&width=200&text=Photo ${formData.photos.length + 1}`
-    setFormData((prev) => ({
-      ...prev,
-      photos: [...prev.photos, newPhoto],
-    }))
-  }
-
-  const handleRemovePhoto = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      photos: prev.photos.filter((_, i) => i !== index),
-    }))
-  }
+    fetchData()
+  }, [toast])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
     try {
-      // In a real app, this would call an API to create the inspection
-      console.log("Form submitted:", formData)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await createInspection({
+        product_id: formData.productId,
+        batch: formData.batch,
+        revendedor_id: formData.supplierId,
+        manufacturer_id: formData.manufacturerId,
+        expiry_date: formData.expiryDate,
+        notes: formData.notes,
+        color: formData.color,
+        odor: formData.odor,
+        appearance: formData.appearance,
+        photos: formData.photoFiles,
+      })
 
       toast({
         title: "Inspeção criada",
-        description: "A inspeção foi criada com sucesso.",
+        description: "A inspeção foi criada com sucesso e os testes foram vinculados automaticamente.",
       })
 
-      // Redirect to inspections list
       router.push("/dashboard/inspecoes")
     } catch (error) {
+      console.error(error)
       toast({
         title: "Erro ao criar inspeção",
-        description: "Ocorreu um erro ao criar a inspeção. Tente novamente.",
+        description: "Não foi possível criar a inspeção.",
         variant: "destructive",
       })
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    const masked = applyDateMask(value)
+    const isoDate = formatDateToISO(masked)
+    
+    setFormData((prev) => ({
+      ...prev,
+      expiryDateDisplay: masked,
+      expiryDate: isoDate,
+    }))
+  }
+
+  const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+
+    const newFiles: File[] = []
+    const newPreviews: string[] = []
+
+    Array.from(files).forEach((file) => {
+      if (file.type.startsWith("image/")) {
+        newFiles.push(file)
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          newPreviews.push(reader.result as string)
+          if (newPreviews.length === files.length) {
+            setFormData((prev) => ({
+              ...prev,
+              photoFiles: [...prev.photoFiles, ...newFiles],
+              photoPreview: [...prev.photoPreview, ...newPreviews],
+            }))
+          }
+        }
+        reader.readAsDataURL(file)
+      }
+    })
+  }
+
+  const handleRemovePhoto = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      photoFiles: prev.photoFiles.filter((_, i) => i !== index),
+      photoPreview: prev.photoPreview.filter((_, i) => i !== index),
+    }))
   }
 
   const handleTabChange = (value: string) => {
@@ -118,6 +242,14 @@ export default function NewInspectionPage() {
   const canProceedToQuality =
     formData.productId && formData.batch && formData.supplierId && formData.manufacturerId && formData.expiryDate
   const canSubmit = canProceedToQuality && formData.color && formData.odor && formData.appearance
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Carregando dados...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -195,7 +327,7 @@ export default function NewInspectionPage() {
                       <SelectContent>
                         {suppliers.map((supplier) => (
                           <SelectItem key={supplier.id} value={supplier.id}>
-                            {supplier.name}
+                            {supplier.nome}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -228,10 +360,11 @@ export default function NewInspectionPage() {
                     <Label htmlFor="expiryDate">Data de Validade</Label>
                     <Input
                       id="expiryDate"
-                      name="expiryDate"
-                      type="date"
-                      value={formData.expiryDate}
-                      onChange={handleChange}
+                      name="expiryDateDisplay"
+                      placeholder="DD/MM/AAAA"
+                      value={formData.expiryDateDisplay}
+                      onChange={handleDateChange}
+                      maxLength={10}
                       required
                     />
                   </div>
@@ -298,10 +431,10 @@ export default function NewInspectionPage() {
                 <div className="space-y-2">
                   <Label>Fotos</Label>
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                    {formData.photos.map((photo, index) => (
+                    {formData.photoPreview.map((photo, index) => (
                       <div key={index} className="relative rounded-md border">
                         <img
-                          src={photo || "/placeholder.svg"}
+                          src={photo}
                           alt={`Foto ${index + 1}`}
                           className="h-32 w-full rounded-md object-cover"
                         />
@@ -316,15 +449,17 @@ export default function NewInspectionPage() {
                         </Button>
                       </div>
                     ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex h-32 flex-col items-center justify-center rounded-md border border-dashed"
-                      onClick={handleAddPhoto}
-                    >
-                      <Camera className="mb-2 h-6 w-6" />
-                      <span>Adicionar Foto</span>
-                    </Button>
+                    <label className="flex h-32 flex-col items-center justify-center rounded-md border border-dashed cursor-pointer hover:bg-accent">
+                      <Upload className="mb-2 h-6 w-6" />
+                      <span className="text-sm">Adicionar Foto</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handlePhotoUpload}
+                      />
+                    </label>
                   </div>
                 </div>
 
