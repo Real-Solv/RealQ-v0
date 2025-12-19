@@ -7,6 +7,63 @@ export type ActionPlan = Database["public"]["Tables"]["action_plans"]["Row"]
 export type ActionPlanInput = Omit<ActionPlan, "id" | "created_at">
 export type ActionPlanUpdate = Partial<ActionPlanInput>
 
+export interface ActionPlanAll {
+  id: string
+  inspection_id: string
+  description: string
+  status: string
+  due_date: string
+  created_at: string
+  created_by: string
+  inspections: {
+    batch: string
+    products: {
+      name: string
+    }
+  }
+}
+
+export async function getActionPlans() {
+  const { data: actionPlans, error } = await supabaseClient
+    .from('action_plans')
+    .select(`
+      *,
+      inspections (
+        batch,
+        products (
+          name
+        )
+      )
+    `)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Erro ao buscar planos de ação:', error)
+    throw error
+  }
+
+  // Buscar os IDs únicos dos usuários
+  const userIds = [...new Set(actionPlans.map(ap => ap.created_by))]
+
+  // Buscar os usuários correspondentes
+  const { data: users, error: usersError } = await supabaseClient
+    .from('users')
+    .select('auth_id, name, email')
+    .in('auth_id', userIds)
+
+  if (usersError) {
+    console.error('Erro ao buscar usuários:', usersError)
+  }
+
+  // Fazer o merge dos dados
+  const actionPlansWithUsers = actionPlans.map(ap => ({
+    ...ap,
+    users: users?.find(u => u.auth_id === ap.created_by) || null
+  }))
+
+  return actionPlansWithUsers as ActionPlanAll[]
+}
+
 export class ActionPlanService extends ApiService<ActionPlan> {
   constructor() {
     super("action_plans")

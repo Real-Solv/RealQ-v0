@@ -1,6 +1,7 @@
 "use client"
 import Link from "next/link"
 import { Eye, MoreHorizontal } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -12,58 +13,52 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { getActionPlans, type ActionPlan } from "@/lib/services/action-plan-service"
 
 interface ActionsListProps {
   searchTerm: string
 }
 
 export function ActionsList({ searchTerm }: ActionsListProps) {
-  // Mock data - in a real app, this would come from an API
-  const mockActions = [
-    {
-      id: "1",
-      product: "Farinha de Trigo",
-      batch: "FT-2023-05-001",
-      description: "Ajustar processo de peneiramento para reduzir impurezas",
-      status: "Em andamento",
-      dueDate: "15/06/2023",
-      assignedTo: "João Silva",
-    },
-    {
-      id: "2",
-      product: "Açúcar Refinado",
-      batch: "AR-2023-05-002",
-      description: "Verificar calibração dos equipamentos de medição de umidade",
-      status: "Pendente",
-      dueDate: "20/06/2023",
-      assignedTo: "Maria Costa",
-    },
-    {
-      id: "3",
-      product: "Leite em Pó",
-      batch: "LP-2023-05-003",
-      description: "Revisar procedimento de amostragem para testes microbiológicos",
-      status: "Concluído",
-      dueDate: "10/06/2023",
-      assignedTo: "Pedro Alves",
-    },
-    {
-      id: "4",
-      product: "Óleo de Soja",
-      batch: "OS-2023-05-004",
-      description: "Implementar novo teste de acidez no processo de recebimento",
-      status: "Em andamento",
-      dueDate: "25/06/2023",
-      assignedTo: "Ana Santos",
-    },
-  ]
+  const [actions, setActions] = useState<ActionPlan[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const actions = mockActions.filter(
+  useEffect(() => {
+    async function loadActions() {
+      try {
+        setLoading(true)
+        const data = await getActionPlans()
+        setActions(data)
+      } catch (error) {
+        console.error("Erro ao carregar planos de ação:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadActions()
+  }, [])
+
+  const filteredActions = actions.filter(
     (action) =>
-      action.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      action.batch.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      action.inspections?.product?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      action.inspections?.batch?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       action.description.toLowerCase().includes(searchTerm.toLowerCase()),
   )
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR')
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-md border">
+        <div className="flex items-center justify-center h-24">
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-md border">
@@ -80,11 +75,11 @@ export function ActionsList({ searchTerm }: ActionsListProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {actions.length > 0 ? (
-            actions.map((action) => (
+          {filteredActions.length > 0 ? (
+            filteredActions.map((action) => (
               <TableRow key={action.id}>
-                <TableCell className="font-medium">{action.product}</TableCell>
-                <TableCell>{action.batch}</TableCell>
+                <TableCell className="font-medium">{action.inspections?.products?.name || '-'}</TableCell>
+                <TableCell>{action.inspections?.batch || '-'}</TableCell>
                 <TableCell>{action.description}</TableCell>
                 <TableCell>
                   <span
@@ -99,8 +94,8 @@ export function ActionsList({ searchTerm }: ActionsListProps) {
                     {action.status}
                   </span>
                 </TableCell>
-                <TableCell>{action.dueDate}</TableCell>
-                <TableCell>{action.assignedTo}</TableCell>
+                <TableCell>{formatDate(action.due_date)}</TableCell>
+                <TableCell>{action.users.name || action.users.email || '-'}</TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

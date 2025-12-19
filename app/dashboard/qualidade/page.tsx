@@ -27,14 +27,6 @@ export default function QualityPage() {
           </p>
         </div>
 
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <Button asChild>
-            <Link href="/dashboard/qualidade/nova">
-              <Plus className="mr-2 h-4 w-4" />
-              Nova Qualidade
-            </Link>
-          </Button>
-        </div>
       </div>
 
       <div className="flex flex-col gap-4 sm:flex-row">
