@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
-import Link from "next/link"
-import { useParams } from "next/navigation"
+import Link from "next/link"  
 import { ArrowLeft, Pencil, AlertTriangle, CheckCircle, Clock, Plus, Save, X } from "lucide-react"
+import { useParams, useSearchParams } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -42,6 +42,7 @@ import { EditActionPlan } from "@/components/dashboard/edit-action-plan"
 
 export default function InspectionDetailPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [inspection, setInspection] = useState<InspectionDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -57,6 +58,19 @@ export default function InspectionDetailPage() {
   useEffect(() => {
     fetchInspection()
   }, [params.id])
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab")
+
+    if (
+      tabFromUrl === "details" ||
+      tabFromUrl === "tests" ||
+      tabFromUrl === "nonconformities" ||
+      tabFromUrl === "actionplans"
+    ) {
+      setActiveTab(tabFromUrl)
+    }
+  }, [searchParams])
 
   const fetchInspection = async () => {
     try {

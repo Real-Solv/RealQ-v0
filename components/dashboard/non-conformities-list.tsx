@@ -1,17 +1,9 @@
 "use client"
 import Link from "next/link"
-import { Eye, MoreHorizontal } from "lucide-react"
+import { Eye } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { getNonConformities, type NonConformity } from "@/lib/services/non-conformity-service"
 
@@ -98,26 +90,12 @@ export function NonConformitiesList({ searchTerm }: NonConformitiesListProps) {
                 <TableCell>{formatDate(nc.created_at)}</TableCell>
                 <TableCell>{nc.users?.name || nc.users?.email || '-'}</TableCell>
                 <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Abrir menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/dashboard/acoes/nao-conformidades/${nc.id}`}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver detalhes
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>Editar</DropdownMenuItem>
-                      <DropdownMenuItem>Criar plano de ação</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/dashboard/inspecoes/${nc.inspection_id}?tab=nonconformities`}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Ver detalhes
+                    </Link>
+                  </Button>
                 </TableCell>
               </TableRow>
             ))

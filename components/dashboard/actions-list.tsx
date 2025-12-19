@@ -1,19 +1,19 @@
 "use client"
 import Link from "next/link"
-import { Eye, MoreHorizontal } from "lucide-react"
+import { Eye } from "lucide-react"
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { getActionPlans, type ActionPlan } from "@/lib/services/action-plan-service"
+import { getActionPlans, updateActionPlan, type ActionPlan } from "@/lib/services/action-plan-service"
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
 
 interface ActionsListProps {
   searchTerm: string
@@ -22,22 +22,55 @@ interface ActionsListProps {
 export function ActionsList({ searchTerm }: ActionsListProps) {
   const [actions, setActions] = useState<ActionPlan[]>([])
   const [loading, setLoading] = useState(true)
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const { toast } = useToast()
 
   useEffect(() => {
-    async function loadActions() {
-      try {
-        setLoading(true)
-        const data = await getActionPlans()
-        setActions(data)
-      } catch (error) {
-        console.error("Erro ao carregar planos de ação:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadActions()
   }, [])
+
+  async function loadActions() {
+    try {
+      setLoading(true)
+      const data = await getActionPlans()
+      setActions(data)
+    } catch (error) {
+      console.error("Erro ao carregar planos de ação:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleStatusChange = async (actionId: string, newStatus: string) => {
+    try {
+      setUpdatingStatus(actionId)
+      
+      const action = actions.find(a => a.id === actionId)
+      if (!action) return
+
+      await updateActionPlan(actionId, {
+        description: action.description,
+        status: newStatus,
+        due_date: action.due_date
+      })
+
+      toast({
+        title: "Status atualizado",
+        description: "O status do plano de ação foi atualizado com sucesso.",
+      })
+
+      await loadActions()
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error)
+      toast({
+        title: "Erro ao atualizar status",
+        description: "Não foi possível atualizar o status do plano de ação.",
+        variant: "destructive",
+      })
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
 
   const filteredActions = actions.filter(
     (action) =>
@@ -82,42 +115,30 @@ export function ActionsList({ searchTerm }: ActionsListProps) {
                 <TableCell>{action.inspections?.batch || '-'}</TableCell>
                 <TableCell>{action.description}</TableCell>
                 <TableCell>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                      action.status === "Concluído"
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                        : action.status === "Em andamento"
-                          ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                    }`}
+                  <Select
+                    value={action.status}
+                    onValueChange={(value) => handleStatusChange(action.id, value)}
+                    disabled={updatingStatus === action.id}
                   >
-                    {action.status}
-                  </span>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pendente">Pendente</SelectItem>
+                      <SelectItem value="andamento">andamento</SelectItem>
+                      <SelectItem value="Concluído">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </TableCell>
                 <TableCell>{formatDate(action.due_date)}</TableCell>
                 <TableCell>{action.users.name || action.users.email || '-'}</TableCell>
                 <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Abrir menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/dashboard/acoes/${action.id}`}>
-                          <Eye className="mr-2 h-4 w-4" />
-                          Ver detalhes
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>Editar</DropdownMenuItem>
-                      <DropdownMenuItem>Atualizar status</DropdownMenuItem>
-                      <DropdownMenuItem>Concluir</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/dashboard/inspecoes/${action.inspection_id}?tab=actionplans`}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Ver detalhes
+                    </Link>
+                  </Button>
                 </TableCell>
               </TableRow>
             ))
