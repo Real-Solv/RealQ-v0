@@ -2,22 +2,33 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Pencil } from "lucide-react"
+import { useParams } from "next/navigation"
+import { ArrowLeft, Pencil, Eye } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { getProductById, type ProductWithCategory } from "@/lib/services/product-service-extended"
+import { getInspectionsByProductId, type InspectionByProduct } from "@/lib/services/inspection-service-extended"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 export default function ProductDetailPage() {
   const params = useParams()
-  const router = useRouter()
   const { toast } = useToast()
   const [product, setProduct] = useState<ProductWithCategory | null>(null)
+  const [inspections, setInspections] = useState<InspectionByProduct[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingInspections, setIsLoadingInspections] = useState(true)
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -37,8 +48,42 @@ export default function ProductDetailPage() {
       }
     }
 
+    const fetchInspections = async () => {
+      try {
+        setIsLoadingInspections(true)
+        const inspectionsData = await getInspectionsByProductId(params.id as string)
+        setInspections(inspectionsData)
+      } catch (error) {
+        console.error("Erro ao carregar inspeções:", error)
+      } finally {
+        setIsLoadingInspections(false)
+      }
+    }
+
     fetchProduct()
+    fetchInspections()
   }, [params.id, toast])
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('pt-BR')
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "Aprovado":
+        return <Badge className="bg-green-500">Aprovado</Badge>
+      case "Pendente":
+        return <Badge className="bg-yellow-500">Pendente</Badge>
+      case "Incompleto":
+        return <Badge className="bg-blue-500">Incompleto</Badge>
+      case "Reprovado":
+        return <Badge className="bg-red-500">Reprovado</Badge>
+      case "Vencido":
+        return <Badge className="bg-red-500">Vencido</Badge>
+      default:
+        return <Badge>{status}</Badge>
+    }
+  }
 
   if (isLoading) {
     return (
@@ -153,8 +198,63 @@ export default function ProductDetailPage() {
           <Separator />
 
           <div>
-            <h3 className="text-lg font-semibold mb-4">Inspeções Recentes</h3>
-            <p className="text-muted-foreground">Nenhuma inspeção registrada para este produto.</p>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Inspeções Recentes</h3>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/dashboard/inspecoes">Ver todas</Link>
+              </Button>
+            </div>
+
+            {isLoadingInspections ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : inspections.length > 0 ? (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Lote</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Revendedor</TableHead>
+                      <TableHead>Fabricante</TableHead>
+                      <TableHead>Data de Validade</TableHead>
+                      <TableHead>Data de Inspeção</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {inspections.map((inspection) => (
+                      <TableRow key={inspection.id}>
+                        <TableCell className="font-medium">{inspection.batch}</TableCell>
+                        <TableCell>{getStatusBadge(inspection.status)}</TableCell>
+                        <TableCell>{inspection.revendedor?.name || '-'}</TableCell>
+                        <TableCell>{inspection.manufacturer?.name || '-'}</TableCell>
+                        <TableCell>{formatDate(inspection.expiry_date)}</TableCell>
+                        <TableCell>{formatDate(inspection.created_at)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/dashboard/inspecoes/${inspection.id}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="text-center py-8 border rounded-md">
+                <p className="text-muted-foreground">Nenhuma inspeção registrada para este produto.</p>
+                <Button className="mt-4" asChild>
+                  <Link href="/dashboard/inspecoes/nova">Nova Inspeção</Link>
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

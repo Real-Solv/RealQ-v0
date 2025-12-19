@@ -461,6 +461,49 @@ export async function getAvailableTests(productId: string): Promise<TestRow[]> {
   )
 }
 
+export interface InspectionByProduct {
+  id: string
+  batch: string
+  status: string
+  expiry_date: string
+  created_at: string
+  revendedor: {
+    name: string
+  }
+  manufacturer: {
+    name: string
+  }
+}
+
+export async function getInspectionsByProductId(productId: string, limit: number = 5) {
+  const { data, error } = await supabaseClient
+    .from('inspections')
+    .select(`
+      id,
+      batch,
+      status,
+      expiry_date,
+      created_at,
+      revendedor:revendedor_id (
+        nome
+      ),
+      manufacturer:manufacturer_id (
+        name
+      )
+    `)
+    .eq('product_id', productId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) {
+    console.log(error)
+    console.error('Erro ao buscar inspeções do produto:', error)
+    throw error
+  }
+
+  return data as InspectionByProduct[]
+}
+
 /**
  * ✅ Adiciona testes a uma inspeção e atualiza o timestamp.
  */
