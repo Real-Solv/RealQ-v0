@@ -22,6 +22,40 @@ export interface ActionPlanAll {
     }
   }
 }
+export async function updateActionPlan(
+  id: string,
+  data: {
+    description?: string
+    status?: string
+    due_date?: string
+  }
+) {
+  const { data: result, error } = await supabaseClient
+    .from('action_plans')
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Erro ao atualizar plano de ação:', error)
+    throw error
+  }
+
+  return result
+}
+
+export async function deleteActionPlan(id: string) {
+  const { error } = await supabaseClient
+    .from('action_plans')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Erro ao deletar plano de ação:', error)
+    throw error
+  }
+}
 
 export async function getActionPlans() {
   const { data: actionPlans, error } = await supabaseClient

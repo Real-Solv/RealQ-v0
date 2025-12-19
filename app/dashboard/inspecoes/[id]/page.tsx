@@ -22,11 +22,23 @@ import { useToast } from "@/hooks/use-toast"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { 
   getInspectionDetail, 
   updateInspectionTest,
   type InspectionDetail 
 } from "@/lib/services/inspection-service-extended"
+import { updateInspectionStatus } from "@/lib/services/inspection-service-extended"
+import { updateNonConformity, deleteNonConformity } from "@/lib/services/non-conformity-service"
+import { updateActionPlan, deleteActionPlan } from "@/lib/services/action-plan-service"
+import { EditNonConformity } from "@/components/dashboard/edit-non-conformity"
+import { EditActionPlan } from "@/components/dashboard/edit-action-plan"
 
 export default function InspectionDetailPage() {
   const params = useParams()
@@ -38,6 +50,9 @@ export default function InspectionDetailPage() {
   const [testPassed, setTestPassed] = useState<Record<string, boolean>>({})
   const [isSavingTest, setIsSavingTest] = useState(false)
   const [activeTab, setActiveTab] = useState("details")
+  const [inspectionStatus, setInspectionStatus] = useState<string>("")
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [isSavingEntity, setIsSavingEntity] = useState(false)
 
   useEffect(() => {
     fetchInspection()
@@ -58,6 +73,7 @@ export default function InspectionDetailPage() {
       }
 
       setInspection(data)
+      setInspectionStatus(data.status)
       
       // Inicializar estados dos testes
       if (data.inspection_tests) {
@@ -79,6 +95,30 @@ export default function InspectionDetailPage() {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleUpdateInspectionStatus = async () => {
+    try {
+      setIsUpdatingStatus(true)
+      
+      await updateInspectionStatus(params.id as string, inspectionStatus as any)
+
+      toast({
+        title: "Status atualizado",
+        description: "O status da inspeção foi atualizado com sucesso.",
+      })
+      
+      await fetchInspection()
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error)
+      toast({
+        title: "Erro ao atualizar status",
+        description: "Não foi possível atualizar o status da inspeção.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUpdatingStatus(false)
     }
   }
 
@@ -113,13 +153,104 @@ export default function InspectionDetailPage() {
   }
 
   const handleCancelEdit = (testId: string) => {
-    // Restaurar valores originais
     const originalTest = inspection?.inspection_tests.find(t => t.id === testId)
     if (originalTest) {
       setTestNotes(prev => ({ ...prev, [testId]: originalTest.notes || '' }))
       setTestPassed(prev => ({ ...prev, [testId]: originalTest.passed || false }))
     }
     setEditingTest(null)
+  }
+
+  const handleSaveNonConformity = async (id: string, data: { description: string; severity: string }) => {
+    try {
+      setIsSavingEntity(true)
+      await updateNonConformity(id, data)
+      
+      toast({
+        title: "Não conformidade atualizada",
+        description: "A não conformidade foi atualizada com sucesso.",
+      })
+      
+      await fetchInspection()
+    } catch (error) {
+      console.error('Erro ao atualizar não conformidade:', error)
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar a não conformidade.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingEntity(false)
+    }
+  }
+
+  const handleDeleteNonConformity = async (id: string) => {
+    try {
+      setIsSavingEntity(true)
+      await deleteNonConformity(id)
+      
+      toast({
+        title: "Não conformidade excluída",
+        description: "A não conformidade foi excluída com sucesso.",
+      })
+      
+      await fetchInspection()
+    } catch (error) {
+      console.error('Erro ao excluir não conformidade:', error)
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir a não conformidade.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingEntity(false)
+    }
+  }
+
+  const handleSaveActionPlan = async (id: string, data: { description: string; status: string; due_date: string }) => {
+    try {
+      setIsSavingEntity(true)
+      await updateActionPlan(id, data)
+      
+      toast({
+        title: "Plano de ação atualizado",
+        description: "O plano de ação foi atualizado com sucesso.",
+      })
+      
+      await fetchInspection()
+    } catch (error) {
+      console.error('Erro ao atualizar plano de ação:', error)
+      toast({
+        title: "Erro ao atualizar",
+        description: "Não foi possível atualizar o plano de ação.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingEntity(false)
+    }
+  }
+
+  const handleDeleteActionPlan = async (id: string) => {
+    try {
+      setIsSavingEntity(true)
+      await deleteActionPlan(id)
+      
+      toast({
+        title: "Plano de ação excluído",
+        description: "O plano de ação foi excluído com sucesso.",
+      })
+      
+      await fetchInspection()
+    } catch (error) {
+      console.error('Erro ao excluir plano de ação:', error)
+      toast({
+        title: "Erro ao excluir",
+        description: "Não foi possível excluir o plano de ação.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingEntity(false)
+    }
   }
 
   const formatDate = (dateString: string) => {
@@ -284,7 +415,7 @@ export default function InspectionDetailPage() {
                     {inspection.photos.map((photo, index) => (
                       <Image
                         key={index}
-                        src={photo.startsWith("http") ? photo : getPublicImageUrl(photo)}
+                        src={photo.startsWith("http") ? photo : `/uploads/${photo}`}
                         alt={`Foto da inspeção ${index + 1}`}
                         width={400}
                         height={400}
@@ -349,7 +480,38 @@ export default function InspectionDetailPage() {
               <WhiteCardTitle>Testes Realizados</WhiteCardTitle>
               <WhiteCardDescription>Resultados dos testes realizados na inspeção</WhiteCardDescription>
             </WhiteCardHeader>
-            <WhiteCardContent>
+            <WhiteCardContent className="space-y-6">
+              {/* Controle de Status da Inspeção */}
+              <div className="border rounded-md p-4 bg-muted/50">
+                <h3 className="text-lg font-semibold mb-4">Status da Inspeção</h3>
+                <div className="flex items-end gap-4">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="inspection-status">Status</Label>
+                    <Select value={inspectionStatus} onValueChange={setInspectionStatus}>
+                      <SelectTrigger id="inspection-status">
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Aprovado">Aprovado</SelectItem>
+                        <SelectItem value="Reprovado">Reprovado</SelectItem>
+                        <SelectItem value="Pendente">Pendente</SelectItem>
+                        <SelectItem value="Incompleto">Incompleto</SelectItem>
+                        <SelectItem value="Vencido">Vencido</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button
+                    onClick={handleUpdateInspectionStatus}
+                    disabled={isUpdatingStatus || inspectionStatus === inspection.status}
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    {isUpdatingStatus ? 'Salvando...' : 'Atualizar Status'}
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
               {inspection.inspection_tests && inspection.inspection_tests.length > 0 ? (
                 <div className="space-y-4">
                   {inspection.inspection_tests.map((test) => (
@@ -453,9 +615,16 @@ export default function InspectionDetailPage() {
                         {getSeverityBadge(nc.severity)}
                       </div>
                       <p className="mb-2">{nc.description}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground mb-4">
                         Registrada em: {formatDate(nc.created_at)}
                       </p>
+                      
+                      <EditNonConformity
+                        nonConformity={nc}
+                        onSave={handleSaveNonConformity}
+                        onDelete={handleDeleteNonConformity}
+                        isSaving={isSavingEntity}
+                      />
                     </div>
                   ))}
                 </div>
@@ -494,9 +663,16 @@ export default function InspectionDetailPage() {
                         {getActionStatusBadge(plan.status)}
                       </div>
                       <p className="mb-2">{plan.description}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground mb-4">
                         Prazo: {formatDate(plan.due_date)}
                       </p>
+                      
+                      <EditActionPlan
+                        actionPlan={plan}
+                        onSave={handleSaveActionPlan}
+                        onDelete={handleDeleteActionPlan}
+                        isSaving={isSavingEntity}
+                      />
                     </div>
                   ))}
                 </div>

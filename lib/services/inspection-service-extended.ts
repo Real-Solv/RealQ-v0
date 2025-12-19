@@ -494,6 +494,26 @@ export async function addTestsToInspection(
 /**
  * ✅ Atualiza um teste específico da inspeção (notas, status passou/não passou)
  */
+
+export async function updateInspectionStatus(
+  inspectionId: string, 
+  status: 'Aprovado' | 'Reprovado' | 'Pendente' | 'Incompleto' | 'Vencido'
+) {
+  const { data, error } = await supabaseClient
+    .from('inspections')
+    .update({ status })
+    .eq('id', inspectionId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Erro ao atualizar status da inspeção:', error)
+    throw error
+  }
+
+  return data
+}
+
 export async function updateInspectionTest(
   testId: string,
   updateData: UpdateTestData

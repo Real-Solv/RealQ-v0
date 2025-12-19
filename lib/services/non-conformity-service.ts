@@ -7,6 +7,39 @@ export type NonConformity = Database["public"]["Tables"]["non_conformities"]["Ro
 export type NonConformityInput = Omit<NonConformity, "id" | "created_at">
 export type NonConformityUpdate = Partial<NonConformityInput>
 
+export async function updateNonConformity(
+  id: string,
+  data: {
+    description?: string
+    severity?: string
+  }
+) {
+  const { data: result, error } = await supabaseClient
+    .from('non_conformities')
+    .update(data)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Erro ao atualizar não conformidade:', error)
+    throw error
+  }
+
+  return result
+}
+
+export async function deleteNonConformity(id: string) {
+  const { error } = await supabaseClient
+    .from('non_conformities')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Erro ao deletar não conformidade:', error)
+    throw error
+  }
+}
 
 export async function getNonConformities() {
   const { data: nonConformities, error } = await supabaseClient
